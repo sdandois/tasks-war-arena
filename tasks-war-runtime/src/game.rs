@@ -1,15 +1,15 @@
 use std::fmt;
 use std::vec;
 
+mod commons;
+mod tasks;
+mod fruits;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone)]
-struct Task {
-    player: Player,
-    pos: Position,
-    weight: usize,
-}
+use commons::*;
+use tasks::*;
+use fruits::*;
 
 enum Direction {
     Up,
@@ -17,8 +17,6 @@ enum Direction {
     Left,
     Right,
 }
-
-type Position = (usize, usize);
 
 #[derive(Clone, Copy)]
 struct BoardSize(usize, usize);
@@ -32,58 +30,6 @@ enum LookResult {
     Food,
 }
 
-impl Task {
-    fn new(player: Player, pos: Position) -> Task {
-        Task {
-            player,
-            weight: 64,
-            pos,
-        }
-    }
-
-    fn with_weight(player: Player, pos: Position, weight: usize) -> Task {
-        Task {
-            player,
-            weight,
-            pos,
-        }
-    }
-
-    fn look_distance(&self) -> usize {
-        self.weight
-    }
-    fn move_distance(&self) -> usize {
-        64 / self.weight
-    }
-}
-
-type Player = usize;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-struct TaskId(usize, usize);
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-enum Fruit {
-    Grape,
-    Banana,
-    Strawberry,
-}
-
-impl Fruit {
-    fn points(&self) -> usize {
-        match &self {
-            Fruit::Grape => 16,
-            Fruit::Banana => 32,
-            Fruit::Strawberry => 64,
-        }
-    }
-}
-
-struct FruitPos {
-    fruit: Fruit,
-    pos: Position,
-}
-
 pub struct Game {
     tasks: Vec<Vec<Task>>,
     board_size: BoardSize,
@@ -91,10 +37,11 @@ pub struct Game {
     player_points: Vec<usize>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Default)]
 enum BoardContent {
+    #[default]
     None,
-    Task(TaskId),
+    Tasks(Vec<TaskId>),
     Food(Fruit),
 }
 
@@ -164,7 +111,15 @@ impl Game {
         for i in 0..final_tasks.len() {
             for j in 0..final_tasks[i].len() {
                 let t = &final_tasks[i][j];
-                board[t.pos.0][t.pos.1] = BoardContent::Task(TaskId(i, j));
+                board[t.pos.0][t.pos.1] = match std::mem::take(&mut board[t.pos.0][t.pos.1]) {
+                    BoardContent::None => BoardContent::Tasks(vec![TaskId(i, j)]),
+                    BoardContent::Tasks(mut tts) => BoardContent::Tasks({
+                        tts.push(TaskId(i, j));
+
+                        tts
+                    }),
+                    BoardContent::Food(_) => todo!(),
+                };
             }
         }
 
@@ -184,20 +139,23 @@ impl Game {
         self.tasks[player].as_mut_slice()
     }
 
-    fn get_tasks(&self, player: Player) -> &[Task] {
+    pub fn get_tasks(&self, player: Player) -> &[Task] {
         self.tasks[player].as_slice()
     }
 
-    fn move_task(&mut self, task_id: TaskId, mut delta: usize, dir: Direction) -> Position {
-        let (old_x, old_y) = {
-            let task: &Task = self.get_task(task_id);
+    fn calculate_new_pos(
+        &self,
+        task_id: TaskId,
+        mut delta: usize,
+        dir: Direction,
+    ) -> (Position, Position) {
+        let task: &Task = self.get_task(task_id);
 
-            if delta > task.move_distance() {
-                delta = task.move_distance()
-            }
+        if delta > task.move_distance() {
+            delta = task.move_distance()
+        }
 
-            task.pos
-        };
+        let (old_x, old_y) = task.pos;
 
         let new_pos = match dir {
             Direction::Down => (
@@ -218,36 +176,78 @@ impl Game {
             ),
         };
 
-        if let BoardContent::Food(f) = self.board[new_pos.0][new_pos.1] {
+        (task.pos, new_pos)
+    }
+
+    pub fn move_task(&mut self, task_id: TaskId, mut delta: usize, dir: Direction) -> Position {
+        let (old_pos, new_pos) = self.calculate_new_pos(task_id, delta, dir);
+
+        let mut old_pos_content = std::mem::take(&mut self.board[old_pos.0][old_pos.1]);
+        let mut new_pos_content = std::mem::take(&mut self.board[new_pos.0][new_pos.1]);
+
+        if let BoardContent::Food(f) = new_pos_content {
             self.player_points[task_id.0] += f.points();
         }
 
-        if let BoardContent::Task(other_task_id) = self.board[new_pos.0][new_pos.1] {
-
-            let winner_id = {
+        if let BoardContent::Tasks(new_pos_tasks_ids) = &mut new_pos_content {
+            let same_team = {
                 let task = self.get_task(task_id);
-                let other_task = self.get_task(other_task_id);
-    
-                if task.weight > other_task.weight {
-                    task_id
-                } else {
-                    other_task_id
-                }
-            };
-          
-            self.board[old_x][old_y] = BoardContent::None;
-            self.board[new_pos.0][new_pos.1] = BoardContent::Task(winner_id);
-        } else {
-            self.board[old_x][old_y] = BoardContent::None;
-            self.board[new_pos.0][new_pos.1] = BoardContent::Task(task_id);
-        }
+                let other_task = self.get_task(*new_pos_tasks_ids.first().unwrap());
 
-        self.get_task_mut(task_id).pos = new_pos;
+                task.player == other_task.player
+            };
+
+            if same_team {
+                self.get_task_mut(task_id).pos = new_pos;
+
+                new_pos_tasks_ids.push(task_id);
+                self.board[old_pos.0][old_pos.1] = BoardContent::None;
+                self.board[new_pos.0][new_pos.1] = new_pos_content;
+
+                return new_pos;
+            }
+
+            let task = self.get_task(task_id);
+
+            let other_weights: usize = new_pos_tasks_ids
+                .iter()
+                .map(|id| self.get_task(*id).weight)
+                .sum();
+
+            if task.weight > other_weights {
+                // (task_id, new_pos_tasks_ids)
+                for tid in new_pos_tasks_ids {
+                    self.get_task_mut(*tid).is_dead = true;
+                }
+                self.get_task_mut(task_id).pos = new_pos;
+                self.board[new_pos.0][new_pos.1] = BoardContent::Tasks(vec![task_id]);
+            } else {
+                self.get_task_mut(task_id).is_dead = true;
+                self.board[new_pos.0][new_pos.1] = new_pos_content;
+            }
+
+        } else {
+            if let BoardContent::Tasks(tts) = &mut old_pos_content {
+                match tts.len() {
+                    1 => {}
+                    _ => {
+                        let index = tts
+                            .iter()
+                            .position(|task_id_wanted| *task_id_wanted == task_id)
+                            .unwrap();
+                        tts.swap_remove(index);
+                        self.board[old_pos.0][old_pos.1] = old_pos_content;
+                    }
+                }
+            }
+            self.board[new_pos.0][new_pos.1] = BoardContent::Tasks(vec![task_id]);
+            self.get_task_mut(task_id).pos = new_pos;
+        }
 
         return new_pos;
     }
 
-    fn look(&self, task_id: TaskId, delta_x: isize, delta_y: isize) -> LookResult {
+    pub fn look(&self, task_id: TaskId, delta_x: isize, delta_y: isize) -> LookResult {
         let task = self.get_task(task_id);
         if (delta_x.abs() + delta_y.abs()) as usize > task.look_distance() {
             return LookResult::Null;
@@ -261,8 +261,8 @@ impl Game {
 
         if let BoardContent::Food(_) = self.board[new_pos.0][new_pos.1] {
             return LookResult::Food;
-        } else if let BoardContent::Task(t) = self.board[new_pos.0][new_pos.1] {
-            return match task.player == self.get_task(t).player {
+        } else if let BoardContent::Tasks(t) = &self.board[new_pos.0][new_pos.1] {
+            return match task.player == self.get_task(t.first().unwrap().clone()).player {
                 false => LookResult::Opponent,
                 true => LookResult::Player,
             };
@@ -271,7 +271,7 @@ impl Game {
         LookResult::None
     }
 
-    fn get_task(&self, task_id: TaskId) -> &Task {
+    pub fn get_task(&self, task_id: TaskId) -> &Task {
         &self.tasks[task_id.0][task_id.1]
     }
 
@@ -279,7 +279,7 @@ impl Game {
         &mut self.tasks[task_id.0][task_id.1]
     }
 
-    fn points(&self, player: Player) -> usize {
+    pub fn points(&self, player: Player) -> usize {
         self.player_points[player]
     }
 }
@@ -290,7 +290,7 @@ impl fmt::Display for Game {
             for j in 0..self.board_size.1 {
                 match &self.board[i][j] {
                     BoardContent::None => write!(f, "_"),
-                    BoardContent::Task(t) => write!(f, "{}", t.0),
+                    BoardContent::Tasks(t) => write!(f, "{}", t.first().unwrap().0),
                     BoardContent::Food(fruit) => write!(f, "{}", fruit),
                 }?;
             }
@@ -301,12 +301,3 @@ impl fmt::Display for Game {
     }
 }
 
-impl fmt::Display for Fruit {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self {
-            Fruit::Grape => write!(f, "G"),
-            Fruit::Banana => write!(f, "B"),
-            Fruit::Strawberry => write!(f, "F"),
-        }
-    }
-}

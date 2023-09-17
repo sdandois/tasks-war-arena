@@ -110,7 +110,7 @@ fn look_none() {
     let task0 = Task::with_weight(0, (10, 10), 64);
     let task1 = Task::new(1, (10, 10));
 
-    let mut game = Game::with_tasks(vec![task0, task1]);
+    let game = Game::with_tasks(vec![task0, task1]);
 
     let res = game.look(TaskId(0, 0), 5, 0);
 
@@ -198,27 +198,25 @@ fn display_game() {
 
 #[test]
 fn task_player_move_two_times() {
-    let task0 = Task::with_weight(0, (0,0), 32);
+    let task0 = Task::with_weight(0, (0, 0), 32);
 
-    let mut game = Game::with_full_customization(
-        Some(vec![task0]),
-        Some(vec![]),
-        Some(BoardSize(5, 5)),
-    );
+    let mut game =
+        Game::with_full_customization(Some(vec![task0]), Some(vec![]), Some(BoardSize(5, 5)));
 
     game.move_task(TaskId(0, 0), 1, Direction::Right);
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
     assert_eq!(BoardContent::None, game.board[0][0]);
     assert_eq!(BoardContent::None, game.board[0][1]);
-    assert_eq!(BoardContent::Task(TaskId(0, 0)), game.board[0][2]);
+    assert_eq!(BoardContent::Tasks(vec![TaskId(0, 0)]), game.board[0][2]);
 
+    assert_eq!((0, 2), game.get_task(TaskId(0, 0)).pos);
 }
 
 #[test]
 fn task_player_collision() {
-    let task0 = Task::with_weight(0, (0,0), 32);
-    let task1 = Task::with_weight(0, (0,1), 20);
+    let task0 = Task::with_weight(0, (0, 0), 32);
+    let task1 = Task::with_weight(1, (0, 1), 20);
 
     let mut game = Game::with_full_customization(
         Some(vec![task0, task1]),
@@ -231,14 +229,18 @@ fn task_player_collision() {
 
     assert_eq!(BoardContent::None, game.board[0][0]);
     assert_eq!(BoardContent::None, game.board[0][1]);
-    assert_eq!(BoardContent::Task(TaskId(0, 0)), game.board[0][2]);
+    assert_eq!(BoardContent::Tasks(vec![TaskId(0, 0)]), game.board[0][2]);
 
+    assert!(!game.get_task(TaskId(0, 0)).is_dead);
+    assert!(game.get_task(TaskId(1, 0)).is_dead);
+
+    assert_eq!((0, 2), game.get_task(TaskId(0, 0)).pos);
 }
 
 #[test]
 fn task_player_looses_collision() {
-    let task0 = Task::with_weight(0, (0,0), 32);
-    let task1 = Task::with_weight(0, (0,1), 40);
+    let task0 = Task::with_weight(0, (0, 0), 32);
+    let task1 = Task::with_weight(1, (0, 1), 40);
 
     let mut game = Game::with_full_customization(
         Some(vec![task0, task1]),
@@ -249,8 +251,105 @@ fn task_player_looses_collision() {
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
     assert_eq!(BoardContent::None, game.board[0][0]);
-    assert_eq!(BoardContent::Task(TaskId(1, 0)), game.board[0][1]);
+    assert_eq!(BoardContent::Tasks(vec![TaskId(1, 0)]), game.board[0][1]);
+
+    assert!(game.get_task(TaskId(0, 0)).is_dead);
+    assert!(!game.get_task(TaskId(1, 0)).is_dead);
+
+    assert_eq!((0, 1), game.get_task(TaskId(1, 0)).pos);
+}
+
+#[test]
+fn eat_fruit() {
+    let task0 = Task::with_weight(0, (0, 0), 32);
+
+    let mut game = Game::with_full_customization(
+        Some(vec![task0]),
+        Some(vec![FruitPos {
+            fruit: Fruit::Banana,
+            pos: (0, 1),
+        }]),
+        Some(BoardSize(5, 5)),
+    );
+
+    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), 1, Direction::Right);
+
+    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, game.board[0][1]);
+    assert_eq!(BoardContent::Tasks(vec![TaskId(0, 0)]), game.board[0][2]);
+
+    assert_eq!((0, 2), game.get_task(TaskId(0, 0)).pos);
+
+    assert_eq!(Fruit::Banana.points(), game.points(0));
+}
+
+#[test]
+fn tasks_collision_same_player() {
+    let task0 = Task::with_weight(0, (0, 0), 32);
+    let task1 = Task::with_weight(0, (0, 1), 40);
+
+    let mut game = Game::with_full_customization(
+        Some(vec![task0, task1]),
+        Some(vec![]),
+        Some(BoardSize(5, 5)),
+    );
+
+    game.move_task(TaskId(0, 0), 1, Direction::Right);
+
+    assert_eq!(BoardContent::None, game.board[0][0]);
+    if let BoardContent::Tasks(tts) = &game.board[0][1] {
+        assert!(tts.contains(&TaskId(0,0)));
+        assert!(tts.contains(&TaskId(0,1)));
+
+    } else {
+        panic!("Must be BoardContent::Tasks")
+    }
+
+    assert!(!game.get_task(TaskId(0, 0)).is_dead);
+    assert!(!game.get_task(TaskId(0, 1)).is_dead);
+
+    assert_eq!((0, 1), game.get_task(TaskId(0, 0)).pos);
+    assert_eq!((0, 1), game.get_task(TaskId(0, 1)).pos);
+
+    game.move_task(TaskId(0, 0), 1, Direction::Right);
+
+    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::Tasks(vec![TaskId(0,1)]), game.board[0][1]);
+    assert_eq!(BoardContent::Tasks(vec![TaskId(0,0)]), game.board[0][2]);
+
+    assert_eq!((0, 1), game.get_task(TaskId(0, 1)).pos);
+    assert_eq!((0, 2), game.get_task(TaskId(0, 0)).pos);
+
 
 }
 
+#[test]
+fn tasks_collision_multiple_tasks() {
+    let task00 = Task::with_weight(0, (0, 1), 20);
+    let task01 = Task::with_weight(0, (0, 1), 20);
+    let task10 = Task::with_weight(1, (0, 0), 30);
 
+    let mut game = Game::with_full_customization(
+        Some(vec![task00, task01, task10]),
+        Some(vec![]),
+        Some(BoardSize(5, 5)),
+    );
+
+    game.move_task(TaskId(1, 0), 1, Direction::Right);
+
+    assert_eq!(BoardContent::None, game.board[0][0]);
+    if let BoardContent::Tasks(tts) = &game.board[0][1] {
+        assert!(!tts.contains(&TaskId(1,0)));
+        assert!(tts.contains(&TaskId(0,0)));
+        assert!(tts.contains(&TaskId(0,1)));
+
+    } else {
+        panic!("Must be BoardContent::Tasks")
+    }
+
+    assert!(!game.get_task(TaskId(0, 0)).is_dead);
+    assert!(!game.get_task(TaskId(0, 1)).is_dead);
+    assert!(game.get_task(TaskId(1, 0)).is_dead);
+
+}
