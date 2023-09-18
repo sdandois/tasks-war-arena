@@ -12,10 +12,10 @@ fn create_new_task() {
 
 #[test]
 fn create_new_game() {
-    let mut game = Game::new();
+    let game = Game::new();
 
-    assert_eq!(1, game.get_tasks_mut(0).len());
-    assert_eq!(1, game.get_tasks_mut(1).len());
+    assert_eq!(1, game.get_tasks(0).len());
+    assert_eq!(1, game.get_tasks(1).len());
 }
 
 #[test]

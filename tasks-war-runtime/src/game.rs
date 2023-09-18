@@ -113,10 +113,6 @@ impl Game {
         }
     }
 
-    fn get_tasks_mut(&mut self, player: Player) -> &mut [Task] {
-        self.tasks[player].as_mut_slice()
-    }
-
     pub fn get_tasks(&self, player: Player) -> &[Task] {
         self.tasks[player].as_slice()
     }
