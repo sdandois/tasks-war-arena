@@ -35,4 +35,10 @@ impl Task {
     pub fn move_distance(&self) -> usize {
         64 / self.weight
     }
+
+    pub fn split(&mut self) -> Task {
+        self.weight = self.weight / 2;
+
+        Task::with_weight(self.player, self.pos, self.weight)
+    }
 }

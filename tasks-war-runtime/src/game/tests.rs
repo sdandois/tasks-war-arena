@@ -206,7 +206,7 @@ fn task_player_move_two_times() {
     game.move_task(TaskId(0, 0), 1, Direction::Right);
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
-    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, *game.board.get_content((0,0)));
     assert_eq!(BoardContent::None, game.board[0][1]);
     assert_eq!(BoardContent::Tasks(vec![TaskId(0, 0)]), game.board[0][2]);
 
@@ -227,7 +227,7 @@ fn task_player_collision() {
     game.move_task(TaskId(0, 0), 1, Direction::Right);
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
-    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, *game.board.get_content((0,0)));
     assert_eq!(BoardContent::None, game.board[0][1]);
     assert_eq!(BoardContent::Tasks(vec![TaskId(0, 0)]), game.board[0][2]);
 
@@ -250,7 +250,7 @@ fn task_player_looses_collision() {
 
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
-    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, *game.board.get_content((0,0)));
     assert_eq!(BoardContent::Tasks(vec![TaskId(1, 0)]), game.board[0][1]);
 
     assert!(game.get_task(TaskId(0, 0)).is_dead);
@@ -275,7 +275,7 @@ fn eat_fruit() {
     game.move_task(TaskId(0, 0), 1, Direction::Right);
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
-    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, *game.board.get_content((0,0)));
     assert_eq!(BoardContent::None, game.board[0][1]);
     assert_eq!(BoardContent::Tasks(vec![TaskId(0, 0)]), game.board[0][2]);
 
@@ -297,7 +297,7 @@ fn tasks_collision_same_player() {
 
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
-    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, *game.board.get_content((0,0)));
     if let BoardContent::Tasks(tts) = &game.board[0][1] {
         assert!(tts.contains(&TaskId(0,0)));
         assert!(tts.contains(&TaskId(0,1)));
@@ -314,7 +314,7 @@ fn tasks_collision_same_player() {
 
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
-    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, *game.board.get_content((0,0)));
     assert_eq!(BoardContent::Tasks(vec![TaskId(0,1)]), game.board[0][1]);
     assert_eq!(BoardContent::Tasks(vec![TaskId(0,0)]), game.board[0][2]);
 
@@ -338,7 +338,7 @@ fn tasks_collision_multiple_tasks() {
 
     game.move_task(TaskId(1, 0), 1, Direction::Right);
 
-    assert_eq!(BoardContent::None, game.board[0][0]);
+    assert_eq!(BoardContent::None, *game.board.get_content((0,0)));
     if let BoardContent::Tasks(tts) = &game.board[0][1] {
         assert!(!tts.contains(&TaskId(1,0)));
         assert!(tts.contains(&TaskId(0,0)));
@@ -352,4 +352,35 @@ fn tasks_collision_multiple_tasks() {
     assert!(!game.get_task(TaskId(0, 1)).is_dead);
     assert!(game.get_task(TaskId(1, 0)).is_dead);
 
+}
+
+
+#[test]
+fn split() {
+    let task0 = Task::with_weight(0, (0, 0), 32);
+    let task1 = Task::with_weight(0, (1, 1), 32);
+
+    let mut game = Game::with_full_customization(
+        Some(vec![task0, task1]),
+        Some(vec![]),
+        Some(BoardSize(5, 5)),
+    );
+
+    let new_task_id = game.split(TaskId(0, 0));
+
+    assert_eq!(TaskId(0,2), new_task_id);
+
+    if let BoardContent::Tasks(tts) = &game.board.get_content((0,0)) {
+        assert!(tts.contains(&TaskId(0,0)));
+        assert!(tts.contains(&new_task_id));
+
+    } else {
+        panic!("Must be BoardContent::Tasks")
+    }
+
+    let new_task = game.get_task(new_task_id);
+
+    assert_eq!(16, game.get_task(TaskId(0, 0)).weight  );
+    assert_eq!(16, new_task.weight );
+    assert_eq!((0,0 ), new_task.pos);
 }
