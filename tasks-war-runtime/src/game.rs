@@ -1,27 +1,25 @@
 use std::fmt;
 use std::vec;
 
+mod board;
 mod commons;
 mod fruits;
 mod tasks;
-mod board;
 #[cfg(test)]
 mod tests;
 
+use board::*;
 use commons::*;
 use fruits::*;
 use tasks::*;
-use board::*;
 
-
-enum Direction {
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Direction {
     Up,
     Down,
     Left,
     Right,
 }
-
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum LookResult {
@@ -39,7 +37,9 @@ pub struct Game {
     player_points: Vec<usize>,
 }
 
-
+pub mod error_messages {
+    pub const NOT_ENOUGH_WEIGHT: &'static str = "Not enough weight";
+}
 
 impl Game {
     pub fn new() -> Game {
@@ -193,7 +193,7 @@ impl Game {
                     self.get_task_mut(*tid).is_dead = true;
                 }
                 self.get_task_mut(task_id).pos = new_pos;
-                *self.board.get_content_mut(new_pos)= BoardContent::Tasks(vec![task_id]);
+                *self.board.get_content_mut(new_pos) = BoardContent::Tasks(vec![task_id]);
             } else {
                 self.get_task_mut(task_id).is_dead = true;
                 *self.board.get_content_mut(new_pos) = new_pos_content;
@@ -255,7 +255,11 @@ impl Game {
         self.player_points[player]
     }
 
-    pub fn split(&mut self, task_id: TaskId) -> TaskId {
+    pub fn split(&mut self, task_id: TaskId) -> Result<TaskId, GameError> {
+        if self.get_task(task_id).weight < 2 {
+            return Err(error_messages::NOT_ENOUGH_WEIGHT);
+        }
+
         let new_task = {
             let task = self.get_task_mut(task_id);
 
@@ -269,7 +273,7 @@ impl Game {
 
         self.tasks[player].push(new_task);
 
-        new_task_id
+        Ok(new_task_id)
     }
 }
 
@@ -277,7 +281,7 @@ impl fmt::Display for Game {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for i in 0..self.board_size.0 {
             for j in 0..self.board_size.1 {
-                write!(f, "{}", self.board.get_content((i,j)) )?;
+                write!(f, "{}", self.board.get_content((i, j)))?;
             }
             write!(f, "\n")?;
         }

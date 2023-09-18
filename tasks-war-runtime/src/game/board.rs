@@ -1,7 +1,6 @@
 use super::commons::*;
-use super::tasks::*;
 use super::fruits::*;
-
+use super::tasks::*;
 
 #[derive(Clone, Copy)]
 pub struct BoardSize(pub usize, pub usize);
@@ -13,7 +12,6 @@ pub enum BoardContent {
     Tasks(Vec<TaskId>),
     Food(Fruit),
 }
-
 
 #[derive(Debug)]
 pub struct Board(Vec<Vec<BoardContent>>);
@@ -55,7 +53,6 @@ impl Board {
     }
 }
 
-
 impl std::ops::Index<usize> for Board {
     type Output = Vec<BoardContent>;
 
@@ -72,12 +69,24 @@ impl std::ops::Index<Position> for Board {
     }
 }
 
-impl  std::fmt::Display for BoardContent {
+impl std::fmt::Display for BoardContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self{
+        match &self {
             BoardContent::None => write!(f, "_"),
             BoardContent::Tasks(t) => write!(f, "{}", t.first().unwrap().0),
             BoardContent::Food(fruit) => write!(f, "{}", fruit),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn index_by_position() {
+        let b = Board::new(BoardSize(20, 20));
+
+        assert_eq!(BoardContent::None, b[(1, 1)]);
     }
 }
