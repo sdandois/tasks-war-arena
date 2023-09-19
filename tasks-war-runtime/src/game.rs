@@ -11,7 +11,7 @@ mod tests;
 use board::*;
 use commons::*;
 use fruits::*;
-use tasks::*;
+pub use tasks::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Direction {
@@ -22,7 +22,7 @@ pub enum Direction {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum LookResult {
+pub enum LookResult {
     Null,
     None,
     Player,
@@ -274,6 +274,18 @@ impl Game {
         self.tasks[player].push(new_task);
 
         Ok(new_task_id)
+    }
+
+    pub fn get_all_task_ids(&self) -> Vec<TaskId> {
+        let mut v = Vec::new();
+
+        for i in 0..2 {
+            for j in 0..self.tasks[i].len() {
+                v.push(TaskId(i, j));
+            }
+        }
+
+        v
     }
 }
 

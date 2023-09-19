@@ -390,3 +390,19 @@ fn split_error() {
         game.split(TaskId(0, 0)).err()
     );
 }
+
+
+#[test]
+fn all_tasks_ids() {
+    let game = Game::new();
+
+    let result : Vec<TaskId> = game.get_all_task_ids();
+
+    let expected = vec![TaskId(0,0), TaskId(1,0)];
+
+    assert_eq!(2, result.len());
+
+    assert!(result.iter().all(|tid| { expected.contains(tid)}));
+    assert!(expected.iter().all(|tid| { result.contains(tid)}));
+
+}

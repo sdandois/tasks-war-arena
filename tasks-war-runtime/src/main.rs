@@ -7,6 +7,7 @@ use wasmtime::*;
 
 
 mod game;
+mod runtime;
 struct MyState {
     name: String,
     count: usize,
