@@ -391,18 +391,40 @@ fn split_error() {
     );
 }
 
-
 #[test]
 fn all_tasks_ids() {
     let game = Game::new();
 
-    let result : Vec<TaskId> = game.get_all_task_ids();
+    let result: Vec<TaskId> = game.get_all_task_ids();
 
-    let expected = vec![TaskId(0,0), TaskId(1,0)];
+    let expected = vec![TaskId(0, 0), TaskId(1, 0)];
 
     assert_eq!(2, result.len());
 
-    assert!(result.iter().all(|tid| { expected.contains(tid)}));
-    assert!(expected.iter().all(|tid| { result.contains(tid)}));
+    assert!(result.iter().all(|tid| { expected.contains(tid) }));
+    assert!(expected.iter().all(|tid| { result.contains(tid) }));
+}
 
+#[test]
+fn new_game_is_not_finished() {
+    let game = Game::new();
+
+    assert!(!game.is_finished())
+}
+
+#[test]
+fn only_player_zero_is_finished() {
+    let game = Game::with_tasks(vec![Task::new(0, (0, 0))]);
+
+    assert!(game.is_finished())
+}
+
+
+#[test]
+fn when_all_tasks_die_the_game_is_finished() {
+    let mut game = Game::with_tasks(vec![Task::with_weight(0, (0, 0), 64), Task::with_weight(1, (0, 1), 32)]);
+
+    game.move_task(TaskId(0, 0), 1, Direction::Right);
+
+    assert!(game.is_finished())
 }

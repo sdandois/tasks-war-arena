@@ -1,6 +1,9 @@
 use std::fmt;
 use std::vec;
 
+use rand::Rng;
+use rand::SeedableRng;
+
 mod board;
 mod commons;
 mod fruits;
@@ -48,6 +51,49 @@ impl Game {
 
     fn with_tasks(tasks: Vec<Task>) -> Game {
         Game::with_full_customization(Some(tasks), None, None)
+    }
+
+    pub fn from_seed(seed: u64) -> Game {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
+
+        let board_size = BoardSize(50, 50);
+        let x_0 = rng.gen_range(0..(board_size.0 / 2));
+        let y_0 = rng.gen_range(0..(board_size.1));
+
+        let x_1 = rng.gen_range((board_size.0 / 2)..board_size.0);
+        let y_1 = rng.gen_range(0..(board_size.1));
+
+        let player0_task = Task::new(0, (x_0, y_0));
+        let player1_task = Task::new(1, (x_1, y_1));
+
+        let tasks = vec![player0_task, player1_task];
+
+        let amount_of_squares = board_size.0 * board_size.1;
+        let fruits_amount = rng.gen_range(amount_of_squares / 10..amount_of_squares / 5);
+
+        let mut fruits = Vec::new();
+
+        for _ in 0..fruits_amount {
+            let fruit_x = rng.gen_range(0..(board_size.0));
+            let fruit_y = rng.gen_range(0..(board_size.1));
+
+            let fruit_random = rng.gen_range(0f64..1f64);
+
+            let fruit = if fruit_random < 0.6 {
+                Fruit::Grape
+            } else if fruit_random < 0.9 {
+                Fruit::Grape
+            } else {
+                Fruit::Strawberry
+            };
+
+            fruits.push(FruitPos {
+                fruit,
+                pos: (fruit_x, fruit_y),
+            })
+        }
+
+        Game::with_full_customization(Some(tasks), Some(fruits), Some(board_size))
     }
 
     fn with_full_customization(
@@ -286,6 +332,12 @@ impl Game {
         }
 
         v
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.tasks
+            .iter()
+            .any(|t| t.iter().filter(|tt| !tt.is_dead).next().is_none())
     }
 }
 
