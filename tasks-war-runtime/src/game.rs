@@ -199,7 +199,7 @@ impl Game {
         (task.pos, new_pos)
     }
 
-    pub fn move_task(&mut self, task_id: TaskId, mut delta: usize, dir: Direction) -> Position {
+    pub fn move_task(&mut self, task_id: TaskId, delta: usize, dir: Direction) -> Position {
         let (old_pos, new_pos) = self.calculate_new_pos(task_id, delta, dir);
 
         let mut old_pos_content = std::mem::take(self.board.get_content_mut(old_pos));

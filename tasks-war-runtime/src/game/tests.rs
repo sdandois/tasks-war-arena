@@ -98,7 +98,7 @@ fn look_too_far() {
     let task0 = Task::with_weight(0, (10, 10), 4);
     let task1 = Task::new(1, (10, 10));
 
-    let mut game = Game::with_tasks(vec![task0, task1]);
+    let game = Game::with_tasks(vec![task0, task1]);
 
     let res = game.look(TaskId(0, 0), 5, 0);
 

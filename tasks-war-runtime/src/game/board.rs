@@ -18,12 +18,12 @@ pub struct Board(Vec<Vec<BoardContent>>);
 
 impl Board {
     pub fn new(board_size: BoardSize) -> Board {
-        let mut board = Vec::new();
+        let mut board = Vec::with_capacity(board_size.0);
 
-        for i in 0..board_size.0 {
-            let mut v = Vec::new();
+        for _i in 0..board_size.0 {
+            let mut v = Vec::with_capacity(board_size.1);
 
-            for j in 0..board_size.1 {
+            for _j in 0..board_size.1 {
                 v.push(BoardContent::None)
             }
             board.push(v)

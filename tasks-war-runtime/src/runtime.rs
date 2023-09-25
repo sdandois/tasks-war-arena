@@ -13,12 +13,15 @@ use crate::game::Direction;
 use crate::game::Game;
 use crate::game::TaskId;
 
+mod task_runner;
+#[cfg(test)]
+mod tests;
+
+use task_runner::*;
+
 enum Message {
     None,
 }
-
-#[cfg(test)]
-mod tests;
 
 struct GameResult();
 
@@ -28,17 +31,12 @@ struct GameRunner {
 
 type WrappedGame = Arc<Mutex<Game>>;
 
-struct TaskContext {
-    used_fuel: isize,
-    task_id: TaskId,
-}
-
-struct TaskRunner {
-    task_id: TaskId,
-    game: WrappedGame,
-    rx: mpsc::Receiver<Message>,
-    tx: mpsc::Sender<Message>,
-    context: Arc<Mutex<TaskContext>>,
+struct RunnerContext {
+    handles: BinaryHeap<TaskHandle>,
+    continue_game_rx: mpsc::Receiver<Message>,
+    continue_game_tx: Sender<Message>,
+    game: Arc<Mutex<Game>>,
+    tasks: Vec<TaskId>,
 }
 
 struct TaskHandle {
@@ -48,83 +46,9 @@ struct TaskHandle {
     handle: JoinHandle<()>,
 }
 
-struct RunnerContext {
-    handles: BinaryHeap<TaskHandle>,
-    continue_game_rx: mpsc::Receiver<Message>,
-    continue_game_tx: Sender<Message>,
-    game: Arc<Mutex<Game>>,
-    tasks: Vec<TaskId>,
-}
-
-impl TaskRunner {
-    fn new(
-        context: Arc<Mutex<TaskContext>>,
-        game: WrappedGame,
-        tx: mpsc::Sender<Message>,
-        rx: mpsc::Receiver<Message>,
-    ) -> TaskRunner {
-        TaskRunner {
-            task_id: context.lock().unwrap().task_id,
-            game,
-            rx,
-            tx,
-            context: context.clone(),
-        }
-    }
-    async fn run(&mut self) {
-        while let Some(_content) = self.rx.recv().await {
-            println!(
-                "{:?} used fuel {}",
-                self.task_id,
-                self.borrow_context().used_fuel
-            );
-            self.borrow_context().used_fuel += 1;
-
-            self.do_play();
-
-            self.tx.send(Message::None).await.unwrap();
-        }
-    }
-
-    fn do_play(&mut self) {
-        let task_context = self.borrow_context();
-        let command = self.strategy_command();
-
-        let mut rng = rand::rngs::SmallRng::seed_from_u64(34);
-
-        let random_dir = match rng.gen_range(0..3) {
-            0 => Direction::Down,
-            1 => Direction::Left,
-            2 => Direction::Right,
-            3 => Direction::Up,
-            _ => panic!(),
-        };
-
-        let random_delta = rng.gen_range(0..16);
-
-        match command {
-            () => {
-                self.borrow_game()
-                    .move_task(task_context.task_id, random_delta, random_dir);
-            }
-        }
-
-        println!(
-            "{:?} : {:?}",
-            self.task_id,
-            self.borrow_game().get_task(self.task_id).pos
-        );
-    }
-
-    fn strategy_command(&self) {}
-
-    fn borrow_context(&self) -> MutexGuard<'_, TaskContext> {
-        self.context.lock().unwrap()
-    }
-
-    fn borrow_game(&self) -> MutexGuard<'_, Game> {
-        self.game.lock().unwrap()
-    }
+struct TaskContext {
+    used_fuel: isize,
+    task_id: TaskId,
 }
 
 impl GameRunner {
@@ -159,7 +83,7 @@ impl GameRunner {
 
             let handle = tokio::spawn(async move {
                 let mut task_runner =
-                    TaskRunner::new(task_context_copy, game_copy, continue_tx, rx);
+                    TaskRunner::<RandomBot>::new(task_context_copy, game_copy, continue_tx, rx);
 
                 task_runner.run().await;
             });

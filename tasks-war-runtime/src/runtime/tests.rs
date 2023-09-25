@@ -4,7 +4,7 @@ mod test_factory {
     use super::*;
 
     pub(super) fn create_task_handle(task_id: TaskId, used_fuel: isize) -> TaskHandle {
-        let (tx, rx) = tokio::sync::mpsc::channel(32);
+        let (tx, _rx) = tokio::sync::mpsc::channel(32);
         let h = tokio::spawn(async {});
 
         TaskHandle {
