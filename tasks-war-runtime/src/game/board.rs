@@ -51,6 +51,28 @@ impl Board {
     pub fn get_content(&self, pos: Position) -> &BoardContent {
         &self.0[pos.0][pos.1]
     }
+
+    pub fn remove_task(&mut self, pos: Position, task_id: TaskId) {
+        self.0[pos.0][pos.1] = match std::mem::take(&mut self.0[pos.0][pos.1]) {
+            BoardContent::Tasks(mut tts) => {
+                if tts.len() > 1 {
+                    BoardContent::Tasks({
+                        let index = tts
+                            .iter()
+                            .position(|task_id_wanted| *task_id_wanted == task_id)
+                            .unwrap();
+
+                        tts.swap_remove(index);
+
+                        tts
+                    })
+                } else {
+                    BoardContent::None
+                }
+            }
+            _ => panic!("expected tasks"),
+        }
+    }
 }
 
 impl std::ops::Index<usize> for Board {

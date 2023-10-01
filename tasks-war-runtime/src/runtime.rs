@@ -22,6 +22,8 @@ mod tests;
 use bots::{Bot, BotFactory};
 use task_runner::*;
 
+const MAX_FUEL: isize = 15000;
+
 enum Message {
     None,
 }
@@ -149,13 +151,17 @@ impl RunnerContext {
                 break;
             }
 
-            if !self.borrow_game().get_task(next_task.task_id).is_dead {
+            if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
+                println!("{:?} has run out of fuel", next_task.task_id);
+                self.borrow_game().kill(next_task.task_id);
+                self.continue_game_tx.send(Message::None).await.unwrap();
+            } else if self.borrow_game().get_task(next_task.task_id).is_dead {
+                println!("{:?} has been found dead", next_task.task_id);
+                self.continue_game_tx.send(Message::None).await.unwrap();
+            } else {
                 let tx = next_task.tx.clone();
                 self.handles.push(next_task);
                 tx.send(Message::None).await.unwrap();
-            } else {
-                println!("{:?} has been found dead", next_task.task_id);
-                self.continue_game_tx.send(Message::None).await.unwrap();
             }
         }
         println!("End of rounds {}", self.handles.len());

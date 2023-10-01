@@ -339,6 +339,17 @@ impl Game {
             .iter()
             .any(|t| t.iter().filter(|tt| !tt.is_dead).next().is_none())
     }
+
+    pub fn kill(&mut self, tid: TaskId) {
+        let pos = {
+            let task = self.get_task_mut(tid);
+            task.is_dead = true;
+
+            task.pos
+        };
+
+        self.board.remove_task(pos, tid);
+    }
 }
 
 impl fmt::Display for Game {

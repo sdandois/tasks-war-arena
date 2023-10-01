@@ -419,12 +419,45 @@ fn only_player_zero_is_finished() {
     assert!(game.is_finished())
 }
 
-
 #[test]
 fn when_all_tasks_die_the_game_is_finished() {
-    let mut game = Game::with_tasks(vec![Task::with_weight(0, (0, 0), 64), Task::with_weight(1, (0, 1), 32)]);
+    let mut game = Game::with_tasks(vec![
+        Task::with_weight(0, (0, 0), 64),
+        Task::with_weight(1, (0, 1), 32),
+    ]);
 
     game.move_task(TaskId(0, 0), 1, Direction::Right);
 
     assert!(game.is_finished())
+}
+
+#[test]
+fn kill_task() {
+    let mut game = Game::with_tasks(vec![Task::new(0, (0, 0))]);
+
+    game.kill(TaskId(0, 0));
+
+    let task = game.get_task(TaskId(0, 0));
+
+    assert!(task.is_dead);
+
+    assert_eq!(BoardContent::None, *game.board.get_content((0, 0)))
+}
+
+#[test]
+fn kill_task_with_friends() {
+    let mut game = Game::with_tasks(vec![Task::new(0, (0, 0)), Task::new(0, (0, 0))]);
+
+    game.kill(TaskId(0, 0));
+
+    let task = game.get_task(TaskId(0, 0));
+
+    assert!(task.is_dead);
+
+    if let BoardContent::Tasks(tts) = game.board.get_content(task.pos) {
+        assert_eq!(1, tts.len());
+        assert!(tts.contains(&TaskId(0, 1)));
+    } else {
+        panic!("expected tasks")
+    }
 }
