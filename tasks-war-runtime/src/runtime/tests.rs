@@ -18,7 +18,19 @@ mod test_factory {
 
 #[test]
 fn start_runtime() {
-    let runner = GameRunner::<RandomBot>::new();
+    let factory = bots::RandomBotFactory::new();
+    let runner = GameRunner::new(factory);
+
+    let _result = runner.run_game();
+}
+
+#[test]
+fn first_move_is_split() {
+    let factory = bots::MockedBotFactory::new()
+        .mock(TaskId(0, 0), bots::Command::Split)
+        .mock(TaskId(1, 0), bots::Command::Move(1, Direction::Left));
+
+    let runner = GameRunner::new(factory);
 
     let _result = runner.run_game();
 }

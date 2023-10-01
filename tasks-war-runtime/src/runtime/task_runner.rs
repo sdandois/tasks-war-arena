@@ -12,6 +12,8 @@ use crate::game::TaskId;
 
 use super::{Message, TaskContext, WrappedGame};
 
+use super::bots::{Bot, Command};
+
 pub struct TaskRunner<B: Bot> {
     task_id: TaskId,
     game: WrappedGame,
@@ -21,64 +23,13 @@ pub struct TaskRunner<B: Bot> {
     bot: B,
 }
 
-pub struct RandomBot {
-    rng: rand::rngs::SmallRng,
-    weight: usize,
-}
-
-pub trait Bot : Send {
-    fn new(tid: TaskId) -> Self;
-    fn poll(&mut self) -> Command;
-    fn update(&mut self);
-}
-
-impl Bot for RandomBot {
-    fn new(tid: TaskId) -> Self {
-        RandomBot {
-            rng: rand::rngs::SmallRng::seed_from_u64((tid.0 + 2 * tid.1) as u64),
-            weight: 64,
-        }
-    }
-
-    fn poll(&mut self) -> Command {
-        let random_dir = match self.rng.gen_range(0..3) {
-            0 => Direction::Down,
-            1 => Direction::Left,
-            2 => Direction::Right,
-            3 => Direction::Up,
-            _ => panic!(),
-        };
-
-        let coin_flip = self
-            .rng
-            .sample(rand::distributions::Bernoulli::new(0.1).unwrap());
-
-        if coin_flip && self.weight > 1 {
-            self.weight /= 2;
-            Command::Split
-        } else {
-            let random_delta = self.rng.gen_range(0..16);
-
-            Command::Move(random_delta, random_dir)
-        }
-    }
-
-    fn update(&mut self) {
-        todo!()
-    }
-}
-
-pub enum Command {
-    Move(usize, Direction),
-    Split,
-}
-
 impl<B: Bot> TaskRunner<B> {
     pub(super) fn new(
         context: Arc<Mutex<TaskContext>>,
         game: WrappedGame,
         tx: mpsc::Sender<Message>,
         rx: mpsc::Receiver<Message>,
+        bot: B,
     ) -> TaskRunner<B> {
         let task_id = context.lock().unwrap().task_id.clone();
         TaskRunner {
@@ -87,14 +38,15 @@ impl<B: Bot> TaskRunner<B> {
             rx,
             tx,
             context: context.clone(),
-            bot: B::new(task_id),
+            bot,
         }
     }
     pub async fn run(&mut self) {
         while let Some(_content) = self.rx.recv().await {
             println!(
-                "{:?} used fuel {}",
+                "{:?}: at {:?} with {} of fuel",
                 self.task_id,
+                self.borrow_game().get_task(self.task_id).pos,
                 self.borrow_context().used_fuel
             );
             self.borrow_context().used_fuel += 1;
@@ -121,8 +73,9 @@ impl<B: Bot> TaskRunner<B> {
         }
 
         println!(
-            "{:?} : {:?}",
+            "{:?}: after {:?} at {:?}",
             self.task_id,
+            command,
             self.borrow_game().get_task(self.task_id).pos
         );
     }
@@ -135,4 +88,3 @@ impl<B: Bot> TaskRunner<B> {
         self.game.lock().unwrap()
     }
 }
-

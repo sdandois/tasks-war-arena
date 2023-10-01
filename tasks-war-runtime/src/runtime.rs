@@ -14,10 +14,12 @@ use crate::game::Direction;
 use crate::game::Game;
 use crate::game::TaskId;
 
+mod bots;
 mod task_runner;
 #[cfg(test)]
 mod tests;
 
+use bots::{Bot, BotFactory};
 use task_runner::*;
 
 enum Message {
@@ -26,9 +28,9 @@ enum Message {
 
 struct GameResult();
 
-struct GameRunner<B: Bot> {
+struct GameRunner<F: BotFactory> {
     tokio_rt: tokio::runtime::Runtime,
-    bot_type: PhantomData<*const B>
+    bot_factory: F,
 }
 
 type WrappedGame = Arc<Mutex<Game>>;
@@ -53,14 +55,14 @@ struct TaskContext {
     task_id: TaskId,
 }
 
-impl <B: Bot> GameRunner<B> {
-    fn new() -> GameRunner<B> {
+impl<F: BotFactory + 'static> GameRunner<F> {
+    fn new(bot_factory: F) -> GameRunner<F> {
         GameRunner {
             tokio_rt: tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .unwrap(),
-            bot_type: PhantomData,
+            bot_factory,
         }
     }
 
@@ -83,10 +85,11 @@ impl <B: Bot> GameRunner<B> {
                 task_id: *t,
             }));
             let task_context_copy = task_context.clone();
+            let bot = self.bot_factory.create_bot(*t);
 
             let handle = tokio::spawn(async move {
                 let mut task_runner =
-                    TaskRunner::<B>::new(task_context_copy, game_copy, continue_tx, rx);
+                    TaskRunner::new(task_context_copy, game_copy, continue_tx, rx, bot);
 
                 task_runner.run().await;
             });

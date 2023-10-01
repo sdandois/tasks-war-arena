@@ -7,7 +7,7 @@ pub struct Task {
     pub weight: usize,
     pub is_dead: bool,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct TaskId(pub usize, pub usize);
 
 impl Task {
