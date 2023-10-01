@@ -18,7 +18,7 @@ mod test_factory {
 
 #[test]
 fn start_runtime() {
-    let runner = GameRunner::new();
+    let runner = GameRunner::<RandomBot>::new();
 
     let _result = runner.run_game();
 }

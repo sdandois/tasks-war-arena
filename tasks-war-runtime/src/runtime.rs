@@ -1,6 +1,7 @@
 use rand::Rng;
 use rand::SeedableRng;
 use std::collections::BinaryHeap;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
@@ -25,8 +26,9 @@ enum Message {
 
 struct GameResult();
 
-struct GameRunner {
+struct GameRunner<B: Bot> {
     tokio_rt: tokio::runtime::Runtime,
+    bot_type: PhantomData<*const B>
 }
 
 type WrappedGame = Arc<Mutex<Game>>;
@@ -51,13 +53,14 @@ struct TaskContext {
     task_id: TaskId,
 }
 
-impl GameRunner {
-    fn new() -> GameRunner {
+impl <B: Bot> GameRunner<B> {
+    fn new() -> GameRunner<B> {
         GameRunner {
             tokio_rt: tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .unwrap(),
+            bot_type: PhantomData,
         }
     }
 
@@ -83,7 +86,7 @@ impl GameRunner {
 
             let handle = tokio::spawn(async move {
                 let mut task_runner =
-                    TaskRunner::<RandomBot>::new(task_context_copy, game_copy, continue_tx, rx);
+                    TaskRunner::<B>::new(task_context_copy, game_copy, continue_tx, rx);
 
                 task_runner.run().await;
             });

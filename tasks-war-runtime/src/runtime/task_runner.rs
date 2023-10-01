@@ -22,25 +22,25 @@ pub struct TaskRunner<B: Bot> {
 }
 
 pub struct RandomBot {
-    rng: rand::rngs::SmallRng
+    rng: rand::rngs::SmallRng,
+    weight: usize,
 }
 
-pub trait Bot {
-    fn new() -> Self;
+pub trait Bot : Send {
+    fn new(tid: TaskId) -> Self;
     fn poll(&mut self) -> Command;
     fn update(&mut self);
 }
 
 impl Bot for RandomBot {
-    fn new() -> Self {
+    fn new(tid: TaskId) -> Self {
         RandomBot {
-            // rng: rand::rngs::SmallRng::seed_from_u64(34)
-            rng: rand::rngs::SmallRng::from_entropy()
+            rng: rand::rngs::SmallRng::seed_from_u64((tid.0 + 2 * tid.1) as u64),
+            weight: 64,
         }
     }
 
     fn poll(&mut self) -> Command {
-
         let random_dir = match self.rng.gen_range(0..3) {
             0 => Direction::Down,
             1 => Direction::Left,
@@ -49,9 +49,18 @@ impl Bot for RandomBot {
             _ => panic!(),
         };
 
-        let random_delta = self.rng.gen_range(0..16);
+        let coin_flip = self
+            .rng
+            .sample(rand::distributions::Bernoulli::new(0.1).unwrap());
 
-        Command::Move(random_delta, random_dir)
+        if coin_flip && self.weight > 1 {
+            self.weight /= 2;
+            Command::Split
+        } else {
+            let random_delta = self.rng.gen_range(0..16);
+
+            Command::Move(random_delta, random_dir)
+        }
     }
 
     fn update(&mut self) {
@@ -61,6 +70,7 @@ impl Bot for RandomBot {
 
 pub enum Command {
     Move(usize, Direction),
+    Split,
 }
 
 impl<B: Bot> TaskRunner<B> {
@@ -70,13 +80,14 @@ impl<B: Bot> TaskRunner<B> {
         tx: mpsc::Sender<Message>,
         rx: mpsc::Receiver<Message>,
     ) -> TaskRunner<B> {
+        let task_id = context.lock().unwrap().task_id.clone();
         TaskRunner {
-            task_id: context.lock().unwrap().task_id,
+            task_id,
             game,
             rx,
             tx,
             context: context.clone(),
-            bot: B::new(),
+            bot: B::new(task_id),
         }
     }
     pub async fn run(&mut self) {
@@ -98,11 +109,14 @@ impl<B: Bot> TaskRunner<B> {
         let command = self.bot.poll();
 
         let task_context = self.borrow_context();
-
+        let task_id = task_context.task_id;
         match command {
             Command::Move(random_delta, random_dir) => {
                 self.borrow_game()
-                    .move_task(task_context.task_id, random_delta, random_dir);
+                    .move_task(task_id, random_delta, random_dir);
+            }
+            Command::Split => {
+                self.borrow_game().split(task_id);
             }
         }
 
@@ -113,7 +127,6 @@ impl<B: Bot> TaskRunner<B> {
         );
     }
 
-
     fn borrow_context(&self) -> MutexGuard<'_, TaskContext> {
         self.context.lock().unwrap()
     }
@@ -122,3 +135,4 @@ impl<B: Bot> TaskRunner<B> {
         self.game.lock().unwrap()
     }
 }
+
