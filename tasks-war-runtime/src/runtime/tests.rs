@@ -12,6 +12,7 @@ mod test_factory {
             task_id,
             tx,
             handle: h,
+            timestamp: 0,
         }
     }
 }

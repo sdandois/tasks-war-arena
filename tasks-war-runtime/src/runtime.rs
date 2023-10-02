@@ -50,6 +50,17 @@ struct TaskHandle {
     task_id: TaskId,
     tx: mpsc::Sender<Message>,
     handle: JoinHandle<()>,
+    timestamp: usize,
+}
+
+impl core::fmt::Debug for TaskHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TaskHandle")
+            .field("task_id", &self.task_id)
+            .field("used_fuel", &self.context.lock().unwrap().used_fuel)
+            .field("timestamp", &self.timestamp)
+            .finish()
+    }
 }
 
 struct TaskContext {
@@ -101,6 +112,7 @@ impl<F: BotFactory + 'static> GameRunner<F> {
                 task_id: *t,
                 tx,
                 handle,
+                timestamp: 0,
             })
         }
 
@@ -142,29 +154,29 @@ impl RunnerContext {
     }
 
     async fn play_rounds(&mut self) {
-        self.continue_game_tx.send(Message::None).await.unwrap();
+        let mut time_counter = 1;
 
-        while let Some((_content, next_task)) =
-            self.continue_game_rx.recv().await.zip(self.handles.pop())
-        {
+        while let Some(mut next_task) = self.handles.pop() {
             if self.borrow_game().is_finished() {
                 break;
             }
 
+            next_task.tx.send(Message::None).await.unwrap();
+            self.continue_game_rx.recv().await;
+
             if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
                 println!("{:?} has run out of fuel", next_task.task_id);
                 self.borrow_game().kill(next_task.task_id);
-                self.continue_game_tx.send(Message::None).await.unwrap();
             } else if self.borrow_game().get_task(next_task.task_id).is_dead {
                 println!("{:?} has been found dead", next_task.task_id);
-                self.continue_game_tx.send(Message::None).await.unwrap();
             } else {
-                let tx = next_task.tx.clone();
+                next_task.timestamp = time_counter;
                 self.handles.push(next_task);
-                tx.send(Message::None).await.unwrap();
+                println!("{:?}", self.handles);
             }
+            time_counter += 1;
         }
-        println!("End of rounds {}", self.handles.len());
+        println!("End of rounds {:?}", self.handles);
     }
 
     fn borrow_game(&self) -> MutexGuard<'_, Game> {
@@ -174,23 +186,24 @@ impl RunnerContext {
 
 impl PartialOrd for TaskHandle {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.context
-            .lock()
-            .unwrap()
-            .used_fuel
-            .partial_cmp(&other.context.lock().unwrap().used_fuel)
-            .map(|o| o.reverse())
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for TaskHandle {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.context
-            .lock()
-            .unwrap()
+        let task_context = self.context.lock().unwrap();
+
+        let ordering = task_context
             .used_fuel
-            .cmp(&other.context.lock().unwrap().used_fuel)
-            .reverse()
+            .cmp(&other.context.lock().unwrap().used_fuel);
+
+        let comparison = match ordering {
+            std::cmp::Ordering::Equal => self.timestamp.cmp(&other.timestamp),
+            _ => ordering,
+        };
+
+        comparison.reverse()
     }
 }
 
