@@ -5,7 +5,6 @@
 
 use wasmtime::*;
 
-
 mod game;
 mod runtime;
 struct MyState {
@@ -65,15 +64,14 @@ fn main() -> Result<()> {
 
     let create_vector = instance.get_typed_func::<(), i32>(&mut store, "create_vector")?;
 
-    let vec_result: i32 = create_vector.call(&mut store, ())?; 
+    let vec_result: i32 = create_vector.call(&mut store, ())?;
 
     println!("vec results {:?}", vec_result);
 
-    let buf : &[u8] = mem.data(&store);
+    let buf: &[u8] = mem.data(&store);
 
     let inf_limit: usize = vec_result as usize;
-    let sup_limit: usize = (vec_result+ 4 *16) as usize;
-
+    let sup_limit: usize = (vec_result + 4 * 16) as usize;
 
     let short_slice = &buf[inf_limit..sup_limit];
 
@@ -82,8 +80,6 @@ fn main() -> Result<()> {
     let game = game::Game::new();
 
     println!("{}", game);
-
-
 
     println!("Done.");
     Ok(())

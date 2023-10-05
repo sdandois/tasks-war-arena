@@ -2,10 +2,10 @@ use super::commons::*;
 use super::fruits::*;
 use super::tasks::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct BoardSize(pub usize, pub usize);
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub enum BoardContent {
     #[default]
     None,
@@ -13,7 +13,7 @@ pub enum BoardContent {
     Food(Fruit),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Board(Vec<Vec<BoardContent>>);
 
 impl Board {

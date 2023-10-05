@@ -1,7 +1,4 @@
-use rand::Rng;
-use rand::SeedableRng;
 use std::collections::BinaryHeap;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
@@ -10,7 +7,6 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 
-use crate::game::Direction;
 use crate::game::Game;
 use crate::game::TaskId;
 
@@ -19,16 +15,12 @@ mod task_runner;
 #[cfg(test)]
 mod tests;
 
-use bots::{Bot, BotFactory};
+use bots::BotFactory;
 use task_runner::*;
 
 const MAX_FUEL: isize = 15000;
 
-enum Message {
-    None,
-}
-
-struct GameResult();
+type GameResult = Game;
 
 struct GameRunner<F: BotFactory> {
     tokio_rt: tokio::runtime::Runtime,
@@ -37,18 +29,20 @@ struct GameRunner<F: BotFactory> {
 
 type WrappedGame = Arc<Mutex<Game>>;
 
-struct RunnerContext {
+struct RunnerContext<F: BotFactory> {
     handles: BinaryHeap<TaskHandle>,
-    continue_game_rx: mpsc::Receiver<Message>,
-    continue_game_tx: Sender<Message>,
+    continue_game_rx: mpsc::Receiver<TaskResponse>,
+    continue_game_tx: Sender<TaskResponse>,
     game: Arc<Mutex<Game>>,
     tasks: Vec<TaskId>,
+    max_rounds: usize,
+    bot_factory: F,
 }
 
 struct TaskHandle {
     context: Arc<Mutex<TaskContext>>,
     task_id: TaskId,
-    tx: mpsc::Sender<Message>,
+    tx: mpsc::Sender<TaskRequest>,
     handle: JoinHandle<()>,
     timestamp: usize,
 }
@@ -63,13 +57,14 @@ impl core::fmt::Debug for TaskHandle {
     }
 }
 
+#[derive(Clone)]
 struct TaskContext {
     used_fuel: isize,
     task_id: TaskId,
 }
 
 impl<F: BotFactory + 'static> GameRunner<F> {
-    fn new(bot_factory: F) -> GameRunner<F> {
+    pub fn new(bot_factory: F) -> GameRunner<F> {
         GameRunner {
             tokio_rt: tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -79,18 +74,26 @@ impl<F: BotFactory + 'static> GameRunner<F> {
         }
     }
 
-    fn run_game(&self) -> GameResult {
-        let future = self.start_game();
+    pub fn run_game(&self) -> GameResult {
+        let future = self.start_game(usize::MAX);
         let game_result = self.tokio_rt.block_on(future);
 
         game_result
     }
 
-    async fn start_game(&self) -> GameResult {
-        let mut runner_context = RunnerContext::new();
+    pub fn run_some_rounds(&self, rounds: usize) -> GameResult {
+        let future = self.start_game(rounds);
+        let game_result = self.tokio_rt.block_on(future);
+
+        game_result
+    }
+
+    async fn start_game(&self, max_rounds: usize) -> GameResult {
+        let mut runner_context = RunnerContext::new(self.bot_factory.clone(), max_rounds);
 
         for t in &runner_context.tasks {
-            let (tx, rx): (mpsc::Sender<Message>, mpsc::Receiver<Message>) = mpsc::channel(32);
+            let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
+                mpsc::channel(32);
             let continue_tx = runner_context.continue_game_tx.clone();
             let game_copy = runner_context.game.clone();
             let task_context = Arc::new(Mutex::new(TaskContext {
@@ -119,14 +122,18 @@ impl<F: BotFactory + 'static> GameRunner<F> {
         runner_context.play_rounds().await;
         runner_context.await_tasks_finish().await;
 
-        GameResult()
+        let g = runner_context.borrow_game().clone();
+
+        g
     }
 }
 
-impl RunnerContext {
-    fn new() -> RunnerContext {
-        let (continue_game_tx, continue_game_rx): (mpsc::Sender<Message>, mpsc::Receiver<Message>) =
-            mpsc::channel(32);
+impl<F: BotFactory + 'static> RunnerContext<F> {
+    fn new(bot_factory: F, max_rounds: usize) -> RunnerContext<F> {
+        let (continue_game_tx, continue_game_rx): (
+            mpsc::Sender<TaskResponse>,
+            mpsc::Receiver<TaskResponse>,
+        ) = mpsc::channel(32);
 
         let game: WrappedGame = Arc::new(Mutex::new(Game::from_seed(32)));
         let tasks = game.lock().unwrap().get_all_task_ids();
@@ -137,6 +144,8 @@ impl RunnerContext {
             continue_game_tx,
             game,
             tasks,
+            max_rounds,
+            bot_factory,
         }
     }
 
@@ -147,7 +156,11 @@ impl RunnerContext {
             .collect();
 
         for i in thread_handles {
-            let _ = i.await;
+            let res = i.await;
+
+            if res.is_err() {
+                println!("Task  finished with error: {:?} ", res.unwrap_err());
+            }
         }
 
         println!("handles joined")
@@ -157,18 +170,53 @@ impl RunnerContext {
         let mut time_counter = 1;
 
         while let Some(mut next_task) = self.handles.pop() {
-            if self.borrow_game().is_finished() {
+            if self.borrow_game().is_finished() || time_counter > self.max_rounds {
                 break;
             }
 
-            next_task.tx.send(Message::None).await.unwrap();
-            self.continue_game_rx.recv().await;
+            next_task.tx.send(TaskRequest::None).await.unwrap();
 
-            if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
+            let message = self.continue_game_rx.recv().await.unwrap();
+
+            if let TaskResponse::NewTask(tid) = message {
+                let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
+                    mpsc::channel(32);
+                let continue_tx = self.continue_game_tx.clone();
+                let game_copy = self.game.clone();
+
+                let task_context = Arc::new(Mutex::new(TaskContext {
+                    used_fuel: next_task.context.lock().unwrap().used_fuel,
+                    task_id: tid,
+                }));
+                let task_context_copy = task_context.clone();
+                let bot = self.bot_factory.create_bot(tid);
+
+                let handle = tokio::spawn(async move {
+                    let mut task_runner =
+                        TaskRunner::new(task_context_copy, game_copy, continue_tx, rx, bot);
+
+                    task_runner.run().await;
+                });
+
+                self.handles.push(TaskHandle {
+                    context: task_context,
+                    task_id: tid,
+                    tx,
+                    handle,
+                    timestamp: 0,
+                })
+            }
+
+            if let TaskResponse::Panicked = message {
+                println!("{:?} has panicked", next_task.task_id);
+            } else if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
                 println!("{:?} has run out of fuel", next_task.task_id);
                 self.borrow_game().kill(next_task.task_id);
             } else if self.borrow_game().get_task(next_task.task_id).is_dead {
                 println!("{:?} has been found dead", next_task.task_id);
+            } else if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
+                println!("{:?} has run out of fuel", next_task.task_id);
+                self.borrow_game().kill(next_task.task_id);
             } else {
                 next_task.timestamp = time_counter;
                 self.handles.push(next_task);

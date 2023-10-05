@@ -19,6 +19,7 @@ impl Fruit {
     }
 }
 
+#[derive(Debug)]
 pub struct FruitPos {
     pub fruit: Fruit,
     pub pos: Position,

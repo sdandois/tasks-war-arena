@@ -1,6 +1,6 @@
 use super::commons::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Task {
     pub player: Player,
     pub pos: Position,

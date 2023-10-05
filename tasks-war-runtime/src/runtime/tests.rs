@@ -1,4 +1,8 @@
+use crate::game::Direction;
+
 use super::*;
+
+use super::bots::Command;
 
 mod test_factory {
     use super::*;
@@ -29,11 +33,56 @@ fn start_runtime() {
 fn first_move_is_split() {
     let factory = bots::MockedBotFactory::new()
         .mock(TaskId(0, 0), bots::Command::Split)
-        .mock(TaskId(1, 0), bots::Command::Move(1, Direction::Left));
+        .mock(TaskId(1, 0), bots::Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 1), bots::Command::Move(1, Direction::Left));
 
     let runner = GameRunner::new(factory);
 
-    let _result = runner.run_game();
+    let result = runner.run_some_rounds(15);
+
+    assert_eq!(result.get_task(TaskId(1, 0)).pos, (34, 20));
+    assert_eq!(result.get_task(TaskId(0, 0)).pos, (10, 25));
+    assert_eq!(result.get_task(TaskId(0, 1)).pos, (10, 24));
+
+    assert_eq!(3, result.get_all_task_ids().len());
+}
+
+#[test]
+fn if_look_result_is_empty_move_right() {
+    let factory = bots::MockedBotFactory::new()
+        .mock(TaskId(0, 0), Command::Look(1, 0))
+        .mock_fn(TaskId(0, 0), |r| {
+            if let crate::game::LookResult::Food = r.unwrap() {
+                Command::Move(1, Direction::Left)
+            } else {
+                Command::Move(1, Direction::Right)
+            }
+        });
+
+    let runner = GameRunner::new(factory);
+
+    let result = runner.run_some_rounds(15);
+
+    assert_eq!(result.get_task(TaskId(0, 0)).pos, (10, 26));
+}
+
+#[test]
+fn if_look_result_is_empty_move_left() {
+    let factory = bots::MockedBotFactory::new()
+        .mock(TaskId(0, 0), Command::Look(0, 2))
+        .mock_fn(TaskId(0, 0), |r| {
+            if let crate::game::LookResult::Food = r.unwrap() {
+                Command::Move(1, Direction::Left)
+            } else {
+                Command::Move(1, Direction::Right)
+            }
+        });
+
+    let runner = GameRunner::new(factory);
+
+    let result = runner.run_some_rounds(15);
+
+    assert_eq!(result.get_task(TaskId(0, 0)).pos, (10, 24));
 }
 
 #[tokio::test]
@@ -43,4 +92,15 @@ async fn task_handle_comparison() {
 
     // Inverse order is needed for binary_heap.
     assert!(t1 > t2);
+}
+
+#[test]
+fn if_bot_panicks_runner_should_finsih() {
+    let factory = bots::MockedBotFactory::new()
+        .mock(TaskId(0, 0), Command::Look(0, 2))
+        .mock_fn(TaskId(0, 0), |_r| panic!("my bot implementation panics"));
+
+    let runner = GameRunner::new(factory);
+
+    let _result = runner.run_some_rounds(15);
 }

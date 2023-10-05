@@ -24,7 +24,7 @@ pub enum Direction {
     Right,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LookResult {
     Null,
     None,
@@ -33,6 +33,7 @@ pub enum LookResult {
     Food,
 }
 
+#[derive(Clone, Debug)]
 pub struct Game {
     tasks: Vec<Vec<Task>>,
     board_size: BoardSize,
@@ -90,7 +91,7 @@ impl Game {
             fruits.push(FruitPos {
                 fruit,
                 pos: (fruit_x, fruit_y),
-            })
+            });
         }
 
         Game::with_full_customization(Some(tasks), Some(fruits), Some(board_size))
