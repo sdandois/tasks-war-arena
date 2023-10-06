@@ -10,7 +10,7 @@ use tokio::task::JoinHandle;
 use crate::game::Game;
 use crate::game::TaskId;
 
-mod bots;
+pub mod bots;
 mod task_runner;
 #[cfg(test)]
 mod tests;
@@ -22,7 +22,7 @@ const MAX_FUEL: isize = 15000;
 
 type GameResult = Game;
 
-struct GameRunner<F: BotFactory> {
+pub struct GameRunner<F: BotFactory> {
     tokio_rt: tokio::runtime::Runtime,
     bot_factory: F,
 }
@@ -220,7 +220,7 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             } else {
                 next_task.timestamp = time_counter;
                 self.handles.push(next_task);
-                println!("{:?}", self.handles);
+                // println!("{:?}", self.handles);
             }
             time_counter += 1;
         }
