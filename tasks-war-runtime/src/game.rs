@@ -6,8 +6,8 @@ use rand::SeedableRng;
 
 mod board;
 mod commons;
-mod fruits;
-mod tasks;
+pub mod fruits;
+pub mod tasks;
 #[cfg(test)]
 mod tests;
 
@@ -50,6 +50,7 @@ impl Game {
         Game::with_full_customization(None, None, None)
     }
 
+    #[cfg(test)]
     fn with_tasks(tasks: Vec<Task>) -> Game {
         Game::with_full_customization(Some(tasks), None, None)
     }

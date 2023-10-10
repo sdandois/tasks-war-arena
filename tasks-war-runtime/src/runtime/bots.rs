@@ -1,8 +1,12 @@
+mod wasm;
+
 use rand::Rng;
 use rand::SeedableRng;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
+
+use async_trait::async_trait;
 
 use crate::game::Direction;
 use crate::game::LookResult;
@@ -16,9 +20,10 @@ pub enum Command {
     Pass,
 }
 
+#[async_trait]
 pub trait Bot: Send {
-    fn poll(&mut self) -> Command;
-    fn update(&mut self, result: Option<LookResult>);
+    async fn poll(&mut self) -> Command;
+    async fn update(&mut self, result: Option<LookResult>);
 }
 
 pub struct RandomBot {
@@ -34,8 +39,11 @@ impl RandomBot {
         }
     }
 }
+
+#[async_trait]
+
 impl Bot for RandomBot {
-    fn poll(&mut self) -> Command {
+    async fn poll(&mut self) -> Command {
         let random_dir = match self.rng.gen_range(0..4) {
             0 => Direction::Down,
             1 => Direction::Left,
@@ -58,7 +66,7 @@ impl Bot for RandomBot {
         }
     }
 
-    fn update(&mut self, result: Option<LookResult>) {}
+    async fn update(&mut self, _result: Option<LookResult>) {}
 }
 
 pub struct MockBot {
@@ -67,7 +75,7 @@ pub struct MockBot {
 }
 
 impl MockBot {
-    fn new(tid: TaskId) -> Self {
+    pub fn new(_tid: TaskId) -> Self {
         MockBot {
             commands: VecDeque::default(),
             previous_result: None,
@@ -75,22 +83,25 @@ impl MockBot {
     }
 }
 
+#[async_trait]
 impl Bot for MockBot {
-    fn poll(&mut self) -> Command {
+    async fn poll(&mut self) -> Command {
         self.commands
             .pop_front()
             .unwrap_or(Arc::new(|_| Command::Pass))(self.previous_result)
     }
 
-    fn update(&mut self, result: Option<LookResult>) {
+    async fn update(&mut self, result: Option<LookResult>) {
         self.previous_result = result;
     }
 }
 
+#[async_trait]
+
 pub trait BotFactory: Clone {
     type B: Bot;
 
-    fn create_bot(&self, task_id: TaskId) -> Self::B;
+    async fn create_bot(&self, task_id: TaskId) -> Self::B;
 }
 
 type CommandClosure = dyn Fn(Option<LookResult>) -> Command + Send + Sync;
@@ -110,7 +121,7 @@ impl MockedBotFactory {
         MockedBotFactory { commands: commands }
     }
 
-    pub fn mock(mut self, tid: TaskId, command: Command) -> Self {
+    pub fn mock(self, tid: TaskId, command: Command) -> Self {
         let closure = move |_| command.clone();
         self.mock_fn(tid, closure)
     }
@@ -130,9 +141,11 @@ impl MockedBotFactory {
     }
 }
 
+#[async_trait]
+
 impl BotFactory for MockedBotFactory {
     type B = MockBot;
-    fn create_bot(&self, task_id: TaskId) -> MockBot {
+    async fn create_bot(&self, task_id: TaskId) -> MockBot {
         let commands_copy = self.commands.get(&task_id).unwrap().clone();
         MockBot {
             commands: commands_copy,
@@ -149,10 +162,10 @@ impl RandomBotFactory {
         RandomBotFactory
     }
 }
-
+#[async_trait]
 impl BotFactory for RandomBotFactory {
     type B = RandomBot;
-    fn create_bot(&self, tid: TaskId) -> RandomBot {
+    async fn create_bot(&self, tid: TaskId) -> RandomBot {
         let seed = (tid.0 + 2 * tid.1) as u64;
 
         RandomBot::new(seed)

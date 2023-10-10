@@ -1,13 +1,9 @@
-use rand::Rng;
-use rand::SeedableRng;
-use std::default;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
 use tokio::sync::mpsc;
 
-use crate::game::Direction;
 use crate::game::Game;
 use crate::game::TaskId;
 
@@ -66,14 +62,14 @@ impl<B: Bot> TaskRunner<B> {
             );
             self.borrow_context().used_fuel += 1;
 
-            let task_response = self.do_play();
+            let task_response = self.do_play().await;
 
             self.tx.send(task_response).await.unwrap();
         }
     }
 
-    fn do_play(&mut self) -> TaskResponse {
-        let command = self.bot.poll();
+    async fn do_play(&mut self) -> TaskResponse {
+        let command = self.bot.poll().await;
 
         let task_id = {
             let task_context = self.borrow_context();
@@ -84,14 +80,14 @@ impl<B: Bot> TaskRunner<B> {
             Command::Move(random_delta, random_dir) => {
                 self.borrow_game()
                     .move_task(task_id, random_delta, random_dir);
-                self.bot.update(None);
+                self.bot.update(None).await;
 
                 TaskResponse::default()
             }
             Command::Split => {
                 let res = self.borrow_game().split(task_id);
 
-                self.bot.update(None);
+                self.bot.update(None).await;
                 match res {
                     Ok(tid) => TaskResponse::NewTask(tid),
                     _ => TaskResponse::None,
@@ -100,7 +96,7 @@ impl<B: Bot> TaskRunner<B> {
             Command::Look(delta_x, delta_y) => {
                 let res = self.borrow_game().look(task_id, delta_x, delta_y);
 
-                self.bot.update(Some(res));
+                self.bot.update(Some(res)).await;
 
                 TaskResponse::None
             }

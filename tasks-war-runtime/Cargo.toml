@@ -16,6 +16,8 @@ path = "src/lib.rs"
 
 [dependencies]
 wasmtime = "^13.0.0" 
+wasmtime-wasi = "^13.0.0"
 tokio = { version = "1", features = ["full"] }
 rand = "0"
+async-trait = "*"
 # futures = "0"

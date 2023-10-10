@@ -20,7 +20,7 @@ use task_runner::*;
 
 const MAX_FUEL: isize = 15000;
 
-type GameResult = Game;
+pub type GameResult = Game;
 
 pub struct GameRunner<F: BotFactory> {
     tokio_rt: tokio::runtime::Runtime,
@@ -35,7 +35,7 @@ struct RunnerContext<F: BotFactory> {
     continue_game_tx: Sender<TaskResponse>,
     game: Arc<Mutex<Game>>,
     tasks: Vec<TaskId>,
-    max_rounds: usize,
+    max_turns: usize,
     bot_factory: F,
 }
 
@@ -101,7 +101,7 @@ impl<F: BotFactory + 'static> GameRunner<F> {
                 task_id: *t,
             }));
             let task_context_copy = task_context.clone();
-            let bot = self.bot_factory.create_bot(*t);
+            let bot = self.bot_factory.create_bot(*t).await;
 
             let handle = tokio::spawn(async move {
                 let mut task_runner =
@@ -144,7 +144,7 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             continue_game_tx,
             game,
             tasks,
-            max_rounds,
+            max_turns: max_rounds * 2,
             bot_factory,
         }
     }
@@ -170,7 +170,8 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
         let mut time_counter = 1;
 
         while let Some(mut next_task) = self.handles.pop() {
-            if self.borrow_game().is_finished() || time_counter > self.max_rounds {
+            if self.borrow_game().is_finished() || time_counter > self.max_turns {
+                self.handles.push(next_task);
                 break;
             }
 
@@ -189,7 +190,7 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
                     task_id: tid,
                 }));
                 let task_context_copy = task_context.clone();
-                let bot = self.bot_factory.create_bot(tid);
+                let bot = self.bot_factory.create_bot(tid).await;
 
                 let handle = tokio::spawn(async move {
                     let mut task_runner =

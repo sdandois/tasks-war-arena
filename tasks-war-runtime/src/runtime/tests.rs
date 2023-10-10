@@ -95,7 +95,7 @@ async fn task_handle_comparison() {
 }
 
 #[test]
-fn if_bot_panicks_runner_should_finsih() {
+fn if_bot_panicks_runner_should_finish() {
     let factory = bots::MockedBotFactory::new()
         .mock(TaskId(0, 0), Command::Look(0, 2))
         .mock_fn(TaskId(0, 0), |_r| panic!("my bot implementation panics"));
@@ -104,3 +104,4 @@ fn if_bot_panicks_runner_should_finsih() {
 
     let _result = runner.run_some_rounds(15);
 }
+

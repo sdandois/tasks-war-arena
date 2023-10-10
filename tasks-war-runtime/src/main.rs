@@ -5,11 +5,8 @@
 
 use wasmtime::*;
 
-mod game;
-mod runtime;
+use tasks_war_runtime::game;
 struct MyState {
-    name: String,
-    count: usize,
 }
 
 fn main() -> Result<()> {
@@ -29,8 +26,6 @@ fn main() -> Result<()> {
     let mut store = Store::new(
         &engine,
         MyState {
-            name: "hello, world!".to_string(),
-            count: 0,
         },
     );
 
