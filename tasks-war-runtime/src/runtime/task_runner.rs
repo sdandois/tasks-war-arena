@@ -64,12 +64,22 @@ impl<B: Bot> TaskRunner<B> {
 
             let task_response = self.do_play().await;
 
-            self.tx.send(task_response).await.unwrap();
+            match task_response {
+                Some(resp) => self.tx.send(resp).await.unwrap(),
+                None => {  
+                    println!("{:?} no more to poll.", self.task_id);
+                    self.tx.send(TaskResponse::Panicked).await.unwrap();
+                    break;
+                }
+            }
         }
+        println!("{:?} channel closed, awaiting bot...", self.task_id);
+        self.bot.wait().await;
+        println!("{:?} channel closed, awaiting bot... Done.", self.task_id);
     }
 
-    async fn do_play(&mut self) -> TaskResponse {
-        let command = self.bot.poll().await;
+    async fn do_play(&mut self) -> Option<TaskResponse> {
+        let command = self.bot.poll().await?;
 
         let task_id = {
             let task_context = self.borrow_context();
@@ -110,7 +120,7 @@ impl<B: Bot> TaskRunner<B> {
             self.borrow_game().get_task(self.task_id).pos
         );
 
-        res
+        Some(res)
     }
 
     fn borrow_context(&self) -> MutexGuard<'_, TaskContext> {
@@ -127,7 +137,7 @@ impl<B: Bot> Drop for TaskRunner<B> {
         if std::thread::panicking() {
             let tx_copy = self.tx.clone();
             let _ = tokio::spawn(async move {
-                tx_copy.clone().send(TaskResponse::Panicked).await.unwrap();
+                tx_copy.send(TaskResponse::Panicked).await.unwrap();
             });
         }
     }

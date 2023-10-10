@@ -66,7 +66,7 @@ struct TaskContext {
 impl<F: BotFactory + 'static> GameRunner<F> {
     pub fn new(bot_factory: F) -> GameRunner<F> {
         GameRunner {
-            tokio_rt: tokio::runtime::Builder::new_current_thread()
+            tokio_rt: tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap(),
@@ -144,7 +144,7 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             continue_game_tx,
             game,
             tasks,
-            max_turns: max_rounds * 2,
+            max_turns: max_rounds.saturating_mul(2),
             bot_factory,
         }
     }
@@ -210,18 +210,20 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
 
             if let TaskResponse::Panicked = message {
                 println!("{:?} has panicked", next_task.task_id);
+                std::mem::drop(next_task.tx);
+                let _ = next_task.handle.await;
             } else if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
                 println!("{:?} has run out of fuel", next_task.task_id);
                 self.borrow_game().kill(next_task.task_id);
+                std::mem::drop(next_task.tx);
+                let _ = next_task.handle.await;
             } else if self.borrow_game().get_task(next_task.task_id).is_dead {
                 println!("{:?} has been found dead", next_task.task_id);
-            } else if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
-                println!("{:?} has run out of fuel", next_task.task_id);
-                self.borrow_game().kill(next_task.task_id);
+                std::mem::drop(next_task.tx);
+                let _ = next_task.handle.await;
             } else {
                 next_task.timestamp = time_counter;
                 self.handles.push(next_task);
-                // println!("{:?}", self.handles);
             }
             time_counter += 1;
         }

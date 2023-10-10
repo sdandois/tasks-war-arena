@@ -22,8 +22,9 @@ pub enum Command {
 
 #[async_trait]
 pub trait Bot: Send {
-    async fn poll(&mut self) -> Command;
+    async fn poll(&mut self) -> Option<Command>;
     async fn update(&mut self, result: Option<LookResult>);
+    async fn wait(&mut self);
 }
 
 pub struct RandomBot {
@@ -43,7 +44,7 @@ impl RandomBot {
 #[async_trait]
 
 impl Bot for RandomBot {
-    async fn poll(&mut self) -> Command {
+    async fn poll(&mut self) -> Option<Command> {
         let random_dir = match self.rng.gen_range(0..4) {
             0 => Direction::Down,
             1 => Direction::Left,
@@ -58,15 +59,18 @@ impl Bot for RandomBot {
 
         if coin_flip && self.weight > 1 {
             self.weight /= 2;
-            Command::Split
+            Some(Command::Split)
         } else {
             let random_delta = self.rng.gen_range(0..16);
 
-            Command::Move(random_delta, random_dir)
+            Some(Command::Move(random_delta, random_dir))
         }
     }
 
     async fn update(&mut self, _result: Option<LookResult>) {}
+    async fn wait(&mut self) {
+
+    }
 }
 
 pub struct MockBot {
@@ -85,14 +89,17 @@ impl MockBot {
 
 #[async_trait]
 impl Bot for MockBot {
-    async fn poll(&mut self) -> Command {
-        self.commands
+    async fn poll(&mut self) -> Option<Command> {
+        Some(self.commands
             .pop_front()
-            .unwrap_or(Arc::new(|_| Command::Pass))(self.previous_result)
+            .unwrap_or(Arc::new(|_| Command::Pass))(self.previous_result))
     }
 
     async fn update(&mut self, result: Option<LookResult>) {
         self.previous_result = result;
+    }
+    async fn wait(&mut self) {
+        
     }
 }
 
