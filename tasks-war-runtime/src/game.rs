@@ -366,3 +366,18 @@ impl fmt::Display for Game {
         Ok(())
     }
 }
+
+
+impl TryFrom<i32> for Direction {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Direction::Right),
+            2 => Ok(Direction::Down),
+            3 => Ok(Direction::Left),
+            4 => Ok(Direction::Up),
+            _ => Err(format!("Invalid direction value: {}", value))
+        }
+    }
+}

@@ -5,7 +5,7 @@ use std::sync::Mutex;
 
 use tokio::sync::mpsc;
 
-struct WasmBot {
+pub struct WasmBot {
     tx_in: Option<mpsc::Sender<Message>>,
     rx_out: mpsc::Receiver<Command>,
     handle: Option<tokio::task::JoinHandle<()>>,
@@ -18,8 +18,9 @@ struct ModuleState {
 }
 
 #[derive(Clone)]
-struct WasmBotFactory {
+pub struct WasmBotFactory {
     engine: Engine,
+    module_path: &'static str,
 }
 
 struct Message;
@@ -29,14 +30,17 @@ use crate::game::Task;
 use super::*;
 
 impl WasmBotFactory {
-    pub fn new() -> Result<WasmBotFactory> {
+    pub fn new(module_path: &'static str) -> Result<WasmBotFactory> {
         let mut config = Config::default();
 
         config.async_support(true);
 
         let engine = Engine::new(&config)?;
 
-        Ok(WasmBotFactory { engine })
+        Ok(WasmBotFactory {
+            engine,
+            module_path,
+        })
     }
 }
 
@@ -107,7 +111,11 @@ impl WasmRunner {
                     Box::new(async move {
                         let s = caller.data_mut();
 
-                        s.tx_out.send(Command::Look(0, 0)).await?;
+                        let delta_x = _params[0].unwrap_i32();
+                        let delta_y = _params[1].unwrap_i32();
+
+                        s.tx_out.send(Command::Look(delta_x as isize, delta_y as isize)).await?;
+
                         let _m = s
                             .rx_in
                             .recv()
@@ -122,6 +130,11 @@ impl WasmRunner {
             .unwrap();
     }
 
+    /// Move directions:
+    /// Right = 1,
+    /// Down = 2,
+    /// Left = 3,
+    /// Up = 4.
     fn link_move_task_fn(&mut self) {
         let move_task_type = wasmtime::FuncType::new(
             [wasmtime::ValType::I32, wasmtime::ValType::I32],
@@ -137,7 +150,11 @@ impl WasmRunner {
                     Box::new(async move {
                         let s = caller.data_mut();
 
-                        s.tx_out.send(Command::Move(1, Direction::Left)).await?;
+                        let delta = _params[0].unwrap_i32();
+                        let dir : Direction =  _params[1].unwrap_i32().try_into().unwrap();
+
+
+                        s.tx_out.send(Command::Move(delta as usize, dir)).await?;
                         let _m = s
                             .rx_in
                             .recv()
@@ -234,8 +251,6 @@ impl WasmBot {
                 println!("{:?} Wasm default function finished with error.", task_id);
             } else {
                 println!("{:?} Wasm default function finished ok.", task_id);
-
-
             }
         });
 
@@ -255,10 +270,8 @@ impl Bot for WasmBot {
 
     async fn update(&mut self, result: Option<LookResult>) {
         if let Some(tx) = &self.tx_in {
-
             tx.send(Message).await.unwrap();
         }
-        
     }
     async fn wait(&mut self) {
         self.tx_in.take();
@@ -266,7 +279,6 @@ impl Bot for WasmBot {
         if let Some(h) = self.handle.take() {
             h.await.unwrap();
         }
-
     }
 }
 
@@ -274,9 +286,8 @@ impl Bot for WasmBot {
 impl BotFactory for WasmBotFactory {
     type B = WasmBot;
 
-
     async fn create_bot(&self, task_id: TaskId) -> Self::B {
-        let module = Module::from_file(&self.engine, "wasm_modules/example-task.wasm").unwrap();
+        let module = Module::from_file(&self.engine, self.module_path).unwrap();
         WasmBot::spawn(self.engine.clone(), module, task_id)
             .await
             .unwrap()
@@ -284,29 +295,4 @@ impl BotFactory for WasmBotFactory {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::{game::TaskId, runtime::bots::BotFactory};
-
-    use super::WasmBotFactory;
-
-    #[test]
-    fn wasm_bot_game() {
-        let factory = WasmBotFactory::new().unwrap();
-
-        let runner = crate::runtime::GameRunner::new(factory);
-
-        let _result = runner.run_some_rounds(5);
-
-    }
-
-    #[test]
-    fn full_game_finishes_with_fuel_error() {
-        let factory = WasmBotFactory::new().unwrap();
-
-        let runner = crate::runtime::GameRunner::new(factory);
-
-        let _result = runner.run_game();
-
-    }
-
-}
+mod tests;

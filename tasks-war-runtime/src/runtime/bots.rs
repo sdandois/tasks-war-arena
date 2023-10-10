@@ -12,7 +12,9 @@ use crate::game::Direction;
 use crate::game::LookResult;
 use crate::game::TaskId;
 
-#[derive(Debug, Clone)]
+pub use wasm::WasmBotFactory;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Command {
     Move(usize, Direction),
     Look(isize, isize),
@@ -68,9 +70,7 @@ impl Bot for RandomBot {
     }
 
     async fn update(&mut self, _result: Option<LookResult>) {}
-    async fn wait(&mut self) {
-
-    }
+    async fn wait(&mut self) {}
 }
 
 pub struct MockBot {
@@ -90,17 +90,18 @@ impl MockBot {
 #[async_trait]
 impl Bot for MockBot {
     async fn poll(&mut self) -> Option<Command> {
-        Some(self.commands
+        Some(self
+            .commands
             .pop_front()
-            .unwrap_or(Arc::new(|_| Command::Pass))(self.previous_result))
+            .unwrap_or(Arc::new(|_| Command::Pass))(
+            self.previous_result
+        ))
     }
 
     async fn update(&mut self, result: Option<LookResult>) {
         self.previous_result = result;
     }
-    async fn wait(&mut self) {
-        
-    }
+    async fn wait(&mut self) {}
 }
 
 #[async_trait]
