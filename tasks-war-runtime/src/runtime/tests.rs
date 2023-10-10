@@ -9,12 +9,14 @@ mod test_factory {
 
     pub(super) fn create_task_handle(task_id: TaskId, used_fuel: isize) -> TaskHandle {
         let (tx, _rx) = tokio::sync::mpsc::channel(32);
+        let (_tx, rx) = tokio::sync::mpsc::channel(32);
         let h = tokio::spawn(async {});
 
         TaskHandle {
             context: Arc::new(Mutex::new(TaskContext { used_fuel, task_id })),
             task_id,
             tx,
+            rx,
             handle: h,
             timestamp: 0,
         }

@@ -31,8 +31,6 @@ type WrappedGame = Arc<Mutex<Game>>;
 
 struct RunnerContext<F: BotFactory> {
     handles: BinaryHeap<TaskHandle>,
-    continue_game_rx: mpsc::Receiver<TaskResponse>,
-    continue_game_tx: Sender<TaskResponse>,
     game: Arc<Mutex<Game>>,
     tasks: Vec<TaskId>,
     max_turns: usize,
@@ -43,6 +41,7 @@ struct TaskHandle {
     context: Arc<Mutex<TaskContext>>,
     task_id: TaskId,
     tx: mpsc::Sender<TaskRequest>,
+    rx: mpsc::Receiver<TaskResponse>,
     handle: JoinHandle<()>,
     timestamp: usize,
 }
@@ -94,7 +93,11 @@ impl<F: BotFactory + 'static> GameRunner<F> {
         for t in &runner_context.tasks {
             let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
                 mpsc::channel(32);
-            let continue_tx = runner_context.continue_game_tx.clone();
+
+            let (continue_tx, continue_rx): (mpsc::Sender<TaskResponse>, mpsc::Receiver<TaskResponse>) =
+                mpsc::channel(32);
+
+
             let game_copy = runner_context.game.clone();
             let task_context = Arc::new(Mutex::new(TaskContext {
                 used_fuel: 0,
@@ -114,6 +117,7 @@ impl<F: BotFactory + 'static> GameRunner<F> {
                 context: task_context,
                 task_id: *t,
                 tx,
+                rx: continue_rx,
                 handle,
                 timestamp: 0,
             })
@@ -140,8 +144,6 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
 
         RunnerContext {
             handles: BinaryHeap::new(),
-            continue_game_rx,
-            continue_game_tx,
             game,
             tasks,
             max_turns: max_rounds.saturating_mul(2),
@@ -176,13 +178,13 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             }
 
             next_task.tx.send(TaskRequest::None).await.unwrap();
+            let message = next_task.rx.recv().await;
 
-            let message = self.continue_game_rx.recv().await.unwrap();
-
-            if let TaskResponse::NewTask(tid) = message {
+            if let Some(TaskResponse::NewTask(tid)) = message {
                 let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
                     mpsc::channel(32);
-                let continue_tx = self.continue_game_tx.clone();
+                let (continue_tx, continue_rx): (mpsc::Sender<TaskResponse>, mpsc::Receiver<TaskResponse>) =
+                    mpsc::channel(32);
                 let game_copy = self.game.clone();
 
                 let task_context = Arc::new(Mutex::new(TaskContext {
@@ -203,12 +205,13 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
                     context: task_context,
                     task_id: tid,
                     tx,
+                    rx: continue_rx,
                     handle,
                     timestamp: 0,
                 })
             }
 
-            if let TaskResponse::Panicked = message {
+            if let None = message {
                 println!("{:?} has panicked", next_task.task_id);
                 std::mem::drop(next_task.tx);
                 let _ = next_task.handle.await;

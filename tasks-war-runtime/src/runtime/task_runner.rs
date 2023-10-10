@@ -22,7 +22,6 @@ pub enum TaskResponse {
     #[default]
     None,
     NewTask(TaskId),
-    Panicked,
 }
 
 pub struct TaskRunner<B: Bot> {
@@ -68,7 +67,6 @@ impl<B: Bot> TaskRunner<B> {
                 Some(resp) => self.tx.send(resp).await.unwrap(),
                 None => {  
                     println!("{:?} no more to poll.", self.task_id);
-                    self.tx.send(TaskResponse::Panicked).await.unwrap();
                     break;
                 }
             }
@@ -129,16 +127,5 @@ impl<B: Bot> TaskRunner<B> {
 
     fn borrow_game(&self) -> MutexGuard<'_, Game> {
         self.game.lock().unwrap()
-    }
-}
-
-impl<B: Bot> Drop for TaskRunner<B> {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            let tx_copy = self.tx.clone();
-            let _ = tokio::spawn(async move {
-                tx_copy.send(TaskResponse::Panicked).await.unwrap();
-            });
-        }
     }
 }
