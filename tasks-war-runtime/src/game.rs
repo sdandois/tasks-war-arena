@@ -367,7 +367,6 @@ impl fmt::Display for Game {
     }
 }
 
-
 impl TryFrom<i32> for Direction {
     type Error = String;
 
@@ -377,7 +376,7 @@ impl TryFrom<i32> for Direction {
             2 => Ok(Direction::Down),
             3 => Ok(Direction::Left),
             4 => Ok(Direction::Up),
-            _ => Err(format!("Invalid direction value: {}", value))
+            _ => Err(format!("Invalid direction value: {}", value)),
         }
     }
 }

@@ -10,12 +10,15 @@ use crate::game::Game;
 use crate::game::TaskId;
 
 pub mod bots;
+mod task_handle;
 mod task_runner;
+
 #[cfg(test)]
 mod tests;
 
 use bots::BotFactory;
 use task_runner::*;
+use task_handle::*;
 
 const MAX_FUEL: isize = 15000;
 
@@ -34,31 +37,6 @@ struct RunnerContext<F: BotFactory> {
     tasks: Vec<TaskId>,
     max_turns: usize,
     bot_factory: F,
-}
-
-struct TaskHandle {
-    context: Arc<Mutex<TaskContext>>,
-    task_id: TaskId,
-    tx: mpsc::Sender<TaskRequest>,
-    rx: mpsc::Receiver<TaskResponse>,
-    handle: JoinHandle<()>,
-    timestamp: usize,
-}
-
-impl core::fmt::Debug for TaskHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TaskHandle")
-            .field("task_id", &self.task_id)
-            .field("used_fuel", &self.context.lock().unwrap().used_fuel)
-            .field("timestamp", &self.timestamp)
-            .finish()
-    }
-}
-
-#[derive(Clone)]
-struct TaskContext {
-    used_fuel: isize,
-    task_id: TaskId,
 }
 
 impl<F: BotFactory + 'static> GameRunner<F> {
@@ -212,34 +190,3 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
         })
     }
 }
-
-impl PartialOrd for TaskHandle {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for TaskHandle {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let task_context = self.context.lock().unwrap();
-
-        let ordering = task_context
-            .used_fuel
-            .cmp(&other.context.lock().unwrap().used_fuel);
-
-        let comparison = match ordering {
-            std::cmp::Ordering::Equal => self.timestamp.cmp(&other.timestamp),
-            _ => ordering,
-        };
-
-        comparison.reverse()
-    }
-}
-
-impl PartialEq for TaskHandle {
-    fn eq(&self, other: &Self) -> bool {
-        self.context.lock().unwrap().used_fuel == other.context.lock().unwrap().used_fuel
-    }
-}
-
-impl Eq for TaskHandle {}
