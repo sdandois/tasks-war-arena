@@ -101,12 +101,7 @@ impl<F: BotFactory + 'static> GameRunner<F> {
 }
 
 impl<F: BotFactory + 'static> RunnerContext<F> {
-    fn new(bot_factory: F, max_rounds: usize) -> RunnerContext<F> {
-        let (continue_game_tx, continue_game_rx): (
-            mpsc::Sender<TaskResponse>,
-            mpsc::Receiver<TaskResponse>,
-        ) = mpsc::channel(32);
-
+    fn new(bot_factory: F, max_turns: usize) -> RunnerContext<F> {
         let game: WrappedGame = Arc::new(Mutex::new(Game::from_seed(32)));
         let tasks = game.lock().unwrap().get_all_task_ids();
 
@@ -114,7 +109,7 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             handles: BinaryHeap::new(),
             game,
             tasks,
-            max_turns: max_rounds.saturating_mul(2),
+            max_turns,
             bot_factory,
         }
     }
@@ -149,7 +144,8 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             let message = next_task.rx.recv().await;
 
             if let Some(TaskResponse::NewTask(tid)) = message {
-                self.spawn_task(tid).await;
+                self.spawn_task(tid, next_task.context.lock().unwrap().used_fuel)
+                    .await;
             }
 
             if let None = message {
@@ -178,47 +174,42 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
         self.game.lock().unwrap()
     }
 
-    async fn spawn_all_tasks(&mut self ) {
+    async fn spawn_all_tasks(&mut self) {
         let tasks = std::mem::take(&mut self.tasks);
 
         for &t in &tasks {
-            self.spawn_task(t).await;
+            self.spawn_task(t, 0).await;
         }
 
-        let _  = std::mem::replace(&mut self.tasks, tasks);
+        let _ = std::mem::replace(&mut self.tasks, tasks);
     }
 
-    async fn spawn_task(&mut self, task_id: TaskId)  {
-        let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
-                mpsc::channel(32);
+    async fn spawn_task(&mut self, task_id: TaskId, used_fuel: isize) {
+        let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) = mpsc::channel(32);
 
-            let (continue_tx, continue_rx): (mpsc::Sender<TaskResponse>, mpsc::Receiver<TaskResponse>) =
-                mpsc::channel(32);
+        let (continue_tx, continue_rx): (mpsc::Sender<TaskResponse>, mpsc::Receiver<TaskResponse>) =
+            mpsc::channel(32);
 
+        let game_copy = self.game.clone();
+        let task_context = Arc::new(Mutex::new(TaskContext { used_fuel, task_id }));
+        let task_context_copy = task_context.clone();
+        let bot = self.bot_factory.create_bot(task_id).await;
 
-            let game_copy = self.game.clone();
-            let task_context = Arc::new(Mutex::new(TaskContext {
-                used_fuel: 0,
-                task_id,
-            }));
-            let task_context_copy = task_context.clone();
-            let bot = self.bot_factory.create_bot(task_id).await;
+        let handle = tokio::spawn(async move {
+            let mut task_runner =
+                TaskRunner::new(task_context_copy, game_copy, continue_tx, rx, bot);
 
-            let handle = tokio::spawn(async move {
-                let mut task_runner =
-                    TaskRunner::new(task_context_copy, game_copy, continue_tx, rx, bot);
+            task_runner.run().await;
+        });
 
-                task_runner.run().await;
-            });
-
-            self.handles.push(TaskHandle {
-                context: task_context,
-                task_id,
-                tx,
-                rx: continue_rx,
-                handle,
-                timestamp: 0,
-            })
+        self.handles.push(TaskHandle {
+            context: task_context,
+            task_id,
+            tx,
+            rx: continue_rx,
+            handle,
+            timestamp: 0,
+        })
     }
 }
 

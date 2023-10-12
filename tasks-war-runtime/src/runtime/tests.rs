@@ -107,7 +107,6 @@ fn if_bot_panicks_runner_should_finish() {
     let _result = runner.run_some_rounds(15);
 }
 
-
 #[test]
 fn wasm_bot_game() {
     let factory = bots::WasmBotFactory::new("wasm_modules/example-task.wasm").unwrap();
@@ -115,7 +114,6 @@ fn wasm_bot_game() {
     let runner = crate::runtime::GameRunner::new(factory);
 
     let _result = runner.run_some_rounds(5);
-
 }
 
 #[test]
@@ -125,5 +123,35 @@ fn full_game_finishes_with_fuel_error() {
     let runner = crate::runtime::GameRunner::new(factory);
 
     let _result = runner.run_game();
+}
 
+#[tokio::test]
+async fn cloned_tasks_have_same_used_fuel() {
+    let factory = bots::MockedBotFactory::new()
+        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), bots::Command::Split);
+
+    let mut runner = RunnerContext::new(factory, 9);
+
+    let _result = runner.spawn_all_tasks().await;
+    let _result = runner.play_rounds().await;
+
+    let vec: Vec<_> = runner.handles.iter().map(|th| th.context.clone()).collect();
+
+    let used_fuel_00 = vec
+        .iter()
+        .find(|c| c.lock().unwrap().task_id == TaskId(0, 0))
+        .map(|c| c.lock().unwrap().used_fuel)
+        .unwrap();
+    let used_fuel_01 = vec
+        .iter()
+        .find(|c| c.lock().unwrap().task_id == TaskId(0, 1))
+        .map(|c| c.lock().unwrap().used_fuel)
+        .unwrap();
+
+    assert!(used_fuel_00 > 2);
+    assert_eq!(used_fuel_00, used_fuel_01);
 }

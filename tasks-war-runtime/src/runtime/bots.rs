@@ -154,9 +154,13 @@ impl MockedBotFactory {
 impl BotFactory for MockedBotFactory {
     type B = MockBot;
     async fn create_bot(&self, task_id: TaskId) -> MockBot {
-        let commands_copy = self.commands.get(&task_id).unwrap().clone();
+        let commands: Option<&VecDeque<Arc<CommandClosure>>> = self.commands.get(&task_id);
+
+        let commands: VecDeque<Arc<CommandClosure>> =
+            commands.cloned().unwrap_or_default();
+
         MockBot {
-            commands: commands_copy,
+            commands: commands,
             previous_result: None,
         }
     }
