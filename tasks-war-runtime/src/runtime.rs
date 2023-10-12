@@ -4,7 +4,6 @@ use std::sync::Mutex;
 use std::sync::MutexGuard;
 
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 
 use crate::game::Game;
@@ -90,38 +89,7 @@ impl<F: BotFactory + 'static> GameRunner<F> {
     async fn start_game(&self, max_rounds: usize) -> GameResult {
         let mut runner_context = RunnerContext::new(self.bot_factory.clone(), max_rounds);
 
-        for t in &runner_context.tasks {
-            let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
-                mpsc::channel(32);
-
-            let (continue_tx, continue_rx): (mpsc::Sender<TaskResponse>, mpsc::Receiver<TaskResponse>) =
-                mpsc::channel(32);
-
-
-            let game_copy = runner_context.game.clone();
-            let task_context = Arc::new(Mutex::new(TaskContext {
-                used_fuel: 0,
-                task_id: *t,
-            }));
-            let task_context_copy = task_context.clone();
-            let bot = self.bot_factory.create_bot(*t).await;
-
-            let handle = tokio::spawn(async move {
-                let mut task_runner =
-                    TaskRunner::new(task_context_copy, game_copy, continue_tx, rx, bot);
-
-                task_runner.run().await;
-            });
-
-            runner_context.handles.push(TaskHandle {
-                context: task_context,
-                task_id: *t,
-                tx,
-                rx: continue_rx,
-                handle,
-                timestamp: 0,
-            })
-        }
+        runner_context.spawn_all_tasks().await;
 
         runner_context.play_rounds().await;
         runner_context.await_tasks_finish().await;
@@ -181,34 +149,7 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             let message = next_task.rx.recv().await;
 
             if let Some(TaskResponse::NewTask(tid)) = message {
-                let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
-                    mpsc::channel(32);
-                let (continue_tx, continue_rx): (mpsc::Sender<TaskResponse>, mpsc::Receiver<TaskResponse>) =
-                    mpsc::channel(32);
-                let game_copy = self.game.clone();
-
-                let task_context = Arc::new(Mutex::new(TaskContext {
-                    used_fuel: next_task.context.lock().unwrap().used_fuel,
-                    task_id: tid,
-                }));
-                let task_context_copy = task_context.clone();
-                let bot = self.bot_factory.create_bot(tid).await;
-
-                let handle = tokio::spawn(async move {
-                    let mut task_runner =
-                        TaskRunner::new(task_context_copy, game_copy, continue_tx, rx, bot);
-
-                    task_runner.run().await;
-                });
-
-                self.handles.push(TaskHandle {
-                    context: task_context,
-                    task_id: tid,
-                    tx,
-                    rx: continue_rx,
-                    handle,
-                    timestamp: 0,
-                })
+                self.spawn_task(tid).await;
             }
 
             if let None = message {
@@ -235,6 +176,49 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
 
     fn borrow_game(&self) -> MutexGuard<'_, Game> {
         self.game.lock().unwrap()
+    }
+
+    async fn spawn_all_tasks(&mut self ) {
+        let tasks = std::mem::take(&mut self.tasks);
+
+        for &t in &tasks {
+            self.spawn_task(t).await;
+        }
+
+        let _  = std::mem::replace(&mut self.tasks, tasks);
+    }
+
+    async fn spawn_task(&mut self, task_id: TaskId)  {
+        let (tx, rx): (mpsc::Sender<TaskRequest>, mpsc::Receiver<TaskRequest>) =
+                mpsc::channel(32);
+
+            let (continue_tx, continue_rx): (mpsc::Sender<TaskResponse>, mpsc::Receiver<TaskResponse>) =
+                mpsc::channel(32);
+
+
+            let game_copy = self.game.clone();
+            let task_context = Arc::new(Mutex::new(TaskContext {
+                used_fuel: 0,
+                task_id,
+            }));
+            let task_context_copy = task_context.clone();
+            let bot = self.bot_factory.create_bot(task_id).await;
+
+            let handle = tokio::spawn(async move {
+                let mut task_runner =
+                    TaskRunner::new(task_context_copy, game_copy, continue_tx, rx, bot);
+
+                task_runner.run().await;
+            });
+
+            self.handles.push(TaskHandle {
+                context: task_context,
+                task_id,
+                tx,
+                rx: continue_rx,
+                handle,
+                timestamp: 0,
+            })
     }
 }
 
