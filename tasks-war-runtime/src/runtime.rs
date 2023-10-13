@@ -20,7 +20,7 @@ use bots::BotFactory;
 use task_runner::*;
 use task_handle::*;
 
-const MAX_FUEL: isize = 15000;
+const MAX_FUEL: isize = 1500000;
 
 pub type GameResult = Game;
 

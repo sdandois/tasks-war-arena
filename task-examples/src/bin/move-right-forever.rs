@@ -7,18 +7,6 @@ extern "C" {
 
 }
 
-#[no_mangle]
-pub extern "C" fn run() {
-    unsafe {
-        println!("run function");
-        for i in 0..20 {
-            println!("Round {}", i);
-            look(1, 1);
-            move_task(1, 1);
-            split();
-        }
-    }
-}
 
 fn main() {
     println!("main function");
@@ -33,9 +21,7 @@ fn main() {
                 std::env::var("PLAYER").unwrap_or(String::from("(unknown)")),
                 i
             );
-            // look(1, 1);
             move_task(1, 1);
-            // split();
         }
     }
 }

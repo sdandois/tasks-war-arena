@@ -24,7 +24,7 @@ pub enum Command {
 
 #[async_trait]
 pub trait Bot: Send {
-    async fn poll(&mut self) -> Option<Command>;
+    async fn poll(&mut self) -> Option<(Command, usize)>;
     async fn update(&mut self, result: Option<LookResult>);
     async fn wait(&mut self);
 }
@@ -46,7 +46,7 @@ impl RandomBot {
 #[async_trait]
 
 impl Bot for RandomBot {
-    async fn poll(&mut self) -> Option<Command> {
+    async fn poll(&mut self) -> Option<(Command, usize)> {
         let random_dir = match self.rng.gen_range(0..4) {
             0 => Direction::Down,
             1 => Direction::Left,
@@ -61,11 +61,11 @@ impl Bot for RandomBot {
 
         if coin_flip && self.weight > 1 {
             self.weight /= 2;
-            Some(Command::Split)
+            (Some((Command::Split, 1)))
         } else {
             let random_delta = self.rng.gen_range(0..16);
 
-            Some(Command::Move(random_delta, random_dir))
+            Some((Command::Move(random_delta, random_dir), 1))
         }
     }
 
@@ -89,12 +89,12 @@ impl MockBot {
 
 #[async_trait]
 impl Bot for MockBot {
-    async fn poll(&mut self) -> Option<Command> {
-        Some(self
-            .commands
-            .pop_front()
-            .unwrap_or(Arc::new(|_| Command::Pass))(
-            self.previous_result
+    async fn poll(&mut self) -> Option<(Command, usize)> {
+        Some((
+            self.commands
+                .pop_front()
+                .unwrap_or(Arc::new(|_| Command::Pass))(self.previous_result),
+            1,
         ))
     }
 
@@ -156,8 +156,7 @@ impl BotFactory for MockedBotFactory {
     async fn create_bot(&self, task_id: TaskId) -> MockBot {
         let commands: Option<&VecDeque<Arc<CommandClosure>>> = self.commands.get(&task_id);
 
-        let commands: VecDeque<Arc<CommandClosure>> =
-            commands.cloned().unwrap_or_default();
+        let commands: VecDeque<Arc<CommandClosure>> = commands.cloned().unwrap_or_default();
 
         MockBot {
             commands: commands,

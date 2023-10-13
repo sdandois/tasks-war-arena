@@ -109,16 +109,16 @@ fn if_bot_panicks_runner_should_finish() {
 
 #[test]
 fn wasm_bot_game() {
-    let factory = bots::WasmBotFactory::same_module("wasm_modules/example-task.wasm").unwrap();
+    let factory = bots::WasmBotFactory::same_module("wasm_modules/move-right-forever.wasm").unwrap();
 
     let runner = crate::runtime::GameRunner::new(factory);
 
-    let _result = runner.run_some_rounds(5);
+    let _result = runner.run_some_rounds(10);
 }
 
 #[test]
 fn full_game_finishes_with_fuel_error() {
-    let factory = bots::WasmBotFactory::same_module("wasm_modules/example-task.wasm").unwrap();
+    let factory = bots::WasmBotFactory::same_module("wasm_modules/move-right-forever.wasm").unwrap();
 
     let runner = crate::runtime::GameRunner::new(factory);
 

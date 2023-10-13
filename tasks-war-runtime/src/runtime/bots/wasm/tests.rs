@@ -8,7 +8,7 @@ async fn look_once() {
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
-    let p = bot.poll().await.unwrap();
+    let p = bot.poll().await.unwrap().0;
 
     assert_eq!(Command::Look(17, 23), p);
 
@@ -20,7 +20,7 @@ async fn move_down() {
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
-    let p = bot.poll().await.unwrap();
+    let p = bot.poll().await.unwrap().0;
 
     assert_eq!(Command::Move(17, Direction::Down), p);
 
@@ -32,7 +32,7 @@ async fn move_left() {
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
-    let p = bot.poll().await.unwrap();
+    let p = bot.poll().await.unwrap().0;
 
     assert_eq!(Command::Move(17, Direction::Left), p);
 
@@ -44,7 +44,7 @@ async fn split() {
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
-    let p = bot.poll().await.unwrap();
+    let p = bot.poll().await.unwrap().0;
 
     assert_eq!(Command::Split, p);
 }
@@ -57,8 +57,8 @@ async fn different_modules_for_players() {
     let mut bot0 = factory.create_bot(TaskId(0, 0)).await;
     let mut bot1 = factory.create_bot(TaskId(1, 0)).await;
 
-    let c0 = bot0.poll().await.unwrap();
-    let c1 = bot1.poll().await.unwrap();
+    let (c0, _) = bot0.poll().await.unwrap();
+    let (c1, _) = bot1.poll().await.unwrap();
 
     assert_eq!(Command::Split, c0);
     assert_eq!(Command::Look(17, 23), c1);

@@ -59,7 +59,6 @@ impl<B: Bot> TaskRunner<B> {
                 self.borrow_game().get_task(self.task_id).pos,
                 self.borrow_context().used_fuel
             );
-            self.borrow_context().used_fuel += 1;
 
             let task_response = self.do_play().await;
 
@@ -77,7 +76,9 @@ impl<B: Bot> TaskRunner<B> {
     }
 
     async fn do_play(&mut self) -> Option<TaskResponse> {
-        let command = self.bot.poll().await?;
+        let (command, consumed_fuel) = self.bot.poll().await?;
+        self.borrow_context().used_fuel += consumed_fuel as isize;
+
 
         let task_id = {
             let task_context = self.borrow_context();
