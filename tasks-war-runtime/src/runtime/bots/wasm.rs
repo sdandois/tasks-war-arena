@@ -20,7 +20,8 @@ struct ModuleState {
 #[derive(Clone)]
 pub struct WasmBotFactory {
     engine: Engine,
-    module_path: &'static str,
+    module_path_player0: Module,
+    module_path_player1: Module,
 }
 
 struct Message;
@@ -30,7 +31,14 @@ use crate::game::Task;
 use super::*;
 
 impl WasmBotFactory {
-    pub fn new(module_path: &'static str) -> Result<WasmBotFactory> {
+    pub fn same_module(module_path_player0: &'static str) -> Result<WasmBotFactory> {
+        Self::new(module_path_player0, module_path_player0)
+    }
+
+    pub fn new(
+        module_path_player0: &'static str,
+        module_path_player1: &'static str,
+    ) -> Result<WasmBotFactory> {
         let mut config = Config::default();
 
         config.async_support(true);
@@ -38,8 +46,9 @@ impl WasmBotFactory {
         let engine = Engine::new(&config)?;
 
         Ok(WasmBotFactory {
-            engine,
-            module_path,
+            engine: engine.clone(),
+            module_path_player0: Module::from_file(&engine, module_path_player0)?,
+            module_path_player1: Module::from_file(&engine, module_path_player1)?,
         })
     }
 }
@@ -114,7 +123,9 @@ impl WasmRunner {
                         let delta_x = _params[0].unwrap_i32();
                         let delta_y = _params[1].unwrap_i32();
 
-                        s.tx_out.send(Command::Look(delta_x as isize, delta_y as isize)).await?;
+                        s.tx_out
+                            .send(Command::Look(delta_x as isize, delta_y as isize))
+                            .await?;
 
                         let _m = s
                             .rx_in
@@ -151,8 +162,7 @@ impl WasmRunner {
                         let s = caller.data_mut();
 
                         let delta = _params[0].unwrap_i32();
-                        let dir : Direction =  _params[1].unwrap_i32().try_into().unwrap();
-
+                        let dir: Direction = _params[1].unwrap_i32().try_into().unwrap();
 
                         s.tx_out.send(Command::Move(delta as usize, dir)).await?;
                         let _m = s
@@ -287,7 +297,11 @@ impl BotFactory for WasmBotFactory {
     type B = WasmBot;
 
     async fn create_bot(&self, task_id: TaskId) -> Self::B {
-        let module = Module::from_file(&self.engine, self.module_path).unwrap();
+        let module = match task_id {
+            TaskId(0, _) => self.module_path_player0.clone(),
+            TaskId(1, _) => self.module_path_player1.clone(),
+            _ => panic!("invalid player"),
+        };
         WasmBot::spawn(self.engine.clone(), module, task_id)
             .await
             .unwrap()
