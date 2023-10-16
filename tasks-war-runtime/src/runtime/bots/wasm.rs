@@ -1,19 +1,19 @@
 use wasmtime::*;
 use wasmtime_wasi::{sync::WasiCtxBuilder, WasiCtx};
 
-use std::sync::Mutex;
-
 use tokio::sync::mpsc;
 
+use super::*;
+
 pub struct WasmBot {
-    tx_in: Option<mpsc::Sender<Message>>,
+    tx_in: Option<mpsc::Sender<Option<LookResult>>>,
     rx_out: mpsc::Receiver<(Command, usize)>,
     handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 struct ModuleState {
     wasi: WasiCtx,
-    rx_in: mpsc::Receiver<Message>,
+    rx_in: mpsc::Receiver<Option<LookResult>>,
     tx_out: mpsc::Sender<(Command, usize)>,
     previous_fuel: u64,
 }
@@ -24,12 +24,6 @@ pub struct WasmBotFactory {
     module_path_player0: Module,
     module_path_player1: Module,
 }
-
-struct Message;
-
-use crate::game::Task;
-
-use super::*;
 
 impl WasmBotFactory {
     pub fn same_module(module_path_player0: &'static str) -> Result<WasmBotFactory> {
@@ -55,7 +49,6 @@ impl WasmBotFactory {
 }
 
 struct WasmRunner {
-    engine: Engine,
     module: Module,
     task_id: TaskId,
     linker: Linker<ModuleState>,
@@ -68,7 +61,7 @@ impl WasmRunner {
         module: Module,
         task_id: TaskId,
         tx_out: mpsc::Sender<(Command, usize)>,
-        rx_in: mpsc::Receiver<Message>,
+        rx_in: mpsc::Receiver<Option<LookResult>>,
     ) -> Self {
         let linker: Linker<ModuleState> = Linker::new(&engine);
 
@@ -85,7 +78,6 @@ impl WasmRunner {
         );
 
         WasmRunner {
-            engine,
             linker,
             store,
             task_id,
@@ -120,25 +112,29 @@ impl WasmRunner {
                 look_type,
                 move |mut caller, _params, results| {
                     Box::new(async move {
-
                         let delta_x = _params[0].unwrap_i32();
                         let delta_y = _params[1].unwrap_i32();
 
-                        let consumed_fuel = caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
+                        let consumed_fuel =
+                            caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
                         caller.data_mut().previous_fuel = caller.fuel_consumed().unwrap();
-                        
+
                         let s = caller.data_mut();
                         s.tx_out
-                            .send((Command::Look(delta_x as isize, delta_y as isize), consumed_fuel as usize))
+                            .send((
+                                Command::Look(delta_x as isize, delta_y as isize),
+                                consumed_fuel as usize,
+                            ))
                             .await?;
 
-                        let _m = s
+                        let look_result = s
                             .rx_in
                             .recv()
                             .await
-                            .ok_or(wasmtime::Error::msg("nothing else to receive"))?;
+                            .ok_or(wasmtime::Error::msg("nothing else to receive"))?
+                            .ok_or(wasmtime::Error::msg("expected a look result"))?;
 
-                        results[0] = Val::I32(0 as i32);
+                        results[0] = Val::I32(look_result.into());
                         Ok(())
                     })
                 },
@@ -164,17 +160,18 @@ impl WasmRunner {
                 move_task_type,
                 |mut caller, _params, results| {
                     Box::new(async move {
-
                         let delta = _params[0].unwrap_i32();
                         let dir: Direction = _params[1].unwrap_i32().try_into().unwrap();
 
-                        let consumed_fuel = caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
+                        let consumed_fuel =
+                            caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
                         caller.data_mut().previous_fuel = caller.fuel_consumed().unwrap();
-                        
+
                         let s = caller.data_mut();
 
-
-                        s.tx_out.send((Command::Move(delta as usize, dir), consumed_fuel as usize)).await?;
+                        s.tx_out
+                            .send((Command::Move(delta as usize, dir), consumed_fuel as usize))
+                            .await?;
                         let _m = s
                             .rx_in
                             .recv()
@@ -192,17 +189,18 @@ impl WasmRunner {
     fn link_split_fn(&mut self) {
         let split_type = wasmtime::FuncType::new([], Some(wasmtime::ValType::I32));
 
-        self
-            .linker
+        self.linker
             .func_new_async("", "split", split_type, |mut caller, _params, results| {
                 Box::new(async move {
-                    
-                    let consumed_fuel = caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
+                    let consumed_fuel =
+                        caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
                     caller.data_mut().previous_fuel = caller.fuel_consumed().unwrap();
-                    
+
                     let s = caller.data_mut();
 
-                    s.tx_out.send((Command::Split, consumed_fuel as usize)).await?;
+                    s.tx_out
+                        .send((Command::Split, consumed_fuel as usize))
+                        .await?;
                     let _m = s
                         .rx_in
                         .recv()
@@ -230,7 +228,6 @@ impl WasmRunner {
         self.link_move_task_fn();
         self.link_split_fn();
 
-
         self.store.add_fuel(u64::MAX).unwrap();
         self.link_module().await;
     }
@@ -244,9 +241,10 @@ impl WasmRunner {
             .typed::<(), ()>(&(self.store))
             .unwrap()
             .call_async(&mut (self.store), ())
-            .await // Este await es problemático.
+            .await
     }
 
+    #[allow(dead_code)]
     async fn run_run_fn(&mut self) {
         let _ = self
             .linker
@@ -264,8 +262,8 @@ impl WasmRunner {
 
 impl WasmBot {
     async fn spawn(engine: Engine, module: Module, task_id: TaskId) -> Result<WasmBot> {
-        let (tx_in, rx_in) = tokio::sync::mpsc::channel::<Message>(2);
-        let (tx_out, rx_out) = tokio::sync::mpsc::channel::<(Command , usize)>(2);
+        let (tx_in, rx_in) = tokio::sync::mpsc::channel::<Option<LookResult>>(2);
+        let (tx_out, rx_out) = tokio::sync::mpsc::channel::<(Command, usize)>(2);
 
         let handle = tokio::spawn(async move {
             let mut runner = WasmRunner::new(engine, module, task_id, tx_out, rx_in);
@@ -275,7 +273,10 @@ impl WasmBot {
 
             if res.is_err() {
                 let err = res.unwrap_err();
-                println!("{:?} Wasm default function finished with error: {:?}", task_id, err);
+                println!(
+                    "{:?} Wasm default function finished with error: {:?}",
+                    task_id, err
+                );
             } else {
                 println!("{:?} Wasm default function finished ok.", task_id);
             }
@@ -291,13 +292,13 @@ impl WasmBot {
 
 #[async_trait]
 impl Bot for WasmBot {
-    async fn poll(&mut self) -> Option<(Command, usize)>{
+    async fn poll(&mut self) -> Option<(Command, usize)> {
         self.rx_out.recv().await
     }
 
     async fn update(&mut self, result: Option<LookResult>) {
         if let Some(tx) = &self.tx_in {
-            tx.send(Message).await.unwrap();
+            tx.send(result).await.unwrap();
         }
     }
     async fn wait(&mut self) {

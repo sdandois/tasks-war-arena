@@ -61,7 +61,7 @@ impl Bot for RandomBot {
 
         if coin_flip && self.weight > 1 {
             self.weight /= 2;
-            (Some((Command::Split, 1)))
+            Some((Command::Split, 1))
         } else {
             let random_delta = self.rng.gen_range(0..16);
 
@@ -173,6 +173,7 @@ impl RandomBotFactory {
         RandomBotFactory
     }
 }
+
 #[async_trait]
 impl BotFactory for RandomBotFactory {
     type B = RandomBot;

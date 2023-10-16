@@ -26,11 +26,11 @@ pub enum Direction {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LookResult {
-    Null,
-    None,
-    Player,
-    Opponent,
-    Food,
+    Null,     // 0
+    None,     // 1
+    Player,   // 2
+    Opponent, // 3
+    Food,     // 4
 }
 
 #[derive(Clone, Debug)]
@@ -377,6 +377,17 @@ impl TryFrom<i32> for Direction {
             3 => Ok(Direction::Left),
             4 => Ok(Direction::Up),
             _ => Err(format!("Invalid direction value: {}", value)),
+        }
+    }
+}
+impl From<LookResult> for i32 {
+    fn from(value: LookResult) -> Self {
+        match value {
+            LookResult::Null => 0,
+            LookResult::None => 1,
+            LookResult::Player => 2,
+            LookResult::Opponent => 3,
+            LookResult::Food => 4,
         }
     }
 }
