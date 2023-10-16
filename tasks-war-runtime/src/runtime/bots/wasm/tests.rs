@@ -4,11 +4,16 @@ use super::*;
 
 #[tokio::test]
 async fn look_once() {
-    let factory = WasmBotFactory::same_module("wasm_modules/look-once.wasm").unwrap();
+    let before = std::time::Instant::now();
+
+    let factory = WasmBotFactory::fetch_from_cache("./wasm_cache/look-once", || {
+        WasmBotFactory::same_module("wasm_modules/look-once.wasm")
+    });
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
     let p = bot.poll().await.unwrap().0;
+    println!("{:?}", (std::time::Instant::now() - before).as_millis());
 
     assert_eq!(Command::Look(17, 23), p);
 }
@@ -16,7 +21,9 @@ async fn look_once() {
 #[tokio::test]
 
 async fn move_down() {
-    let factory = WasmBotFactory::same_module("wasm_modules/move-down.wasm").unwrap();
+    let factory = WasmBotFactory::fetch_from_cache("./wasm_cache/move-down", || {
+        WasmBotFactory::same_module("wasm_modules/move-down.wasm")
+    });
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
@@ -27,7 +34,9 @@ async fn move_down() {
 
 #[tokio::test]
 async fn move_left() {
-    let factory = WasmBotFactory::same_module("wasm_modules/move-left.wasm").unwrap();
+    let factory = WasmBotFactory::fetch_from_cache("./wasm_cache/move-left", || {
+        WasmBotFactory::same_module("wasm_modules/move-left.wasm")
+    });
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
@@ -38,7 +47,9 @@ async fn move_left() {
 
 #[tokio::test]
 async fn split() {
-    let factory = WasmBotFactory::same_module("wasm_modules/split-once.wasm").unwrap();
+    let factory = WasmBotFactory::fetch_from_cache("./wasm_cache/split-once", || {
+        WasmBotFactory::same_module("wasm_modules/split-once.wasm")
+    });
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 
@@ -49,11 +60,13 @@ async fn split() {
 
 #[tokio::test]
 async fn different_modules_for_players() {
-    let factory = WasmBotFactory::new(
-        "wasm_modules/split-once.wasm",
-        "wasm_modules/look-once.wasm",
-    )
-    .unwrap();
+    let factory =
+        WasmBotFactory::fetch_from_cache("./wasm_cache/different_modules_for_player", || {
+            WasmBotFactory::new(
+                "wasm_modules/split-once.wasm",
+                "wasm_modules/look-once.wasm",
+            )
+        });
 
     let mut bot0 = factory.create_bot(TaskId(0, 0)).await;
     let mut bot1 = factory.create_bot(TaskId(1, 0)).await;
@@ -67,7 +80,9 @@ async fn different_modules_for_players() {
 
 #[tokio::test]
 async fn action_depends_on_look_result() {
-    let factory = WasmBotFactory::same_module("wasm_modules/look-if-empty.wasm").unwrap();
+    let factory = WasmBotFactory::fetch_from_cache("./wasm_cache/look-if-empty", || {
+        WasmBotFactory::same_module("wasm_modules/look-if-empty.wasm")
+    });
 
     let mut bot = factory.create_bot(TaskId(0, 0)).await;
 

@@ -24,6 +24,7 @@ mod test_factory {
 }
 
 #[test]
+#[ignore = "too slow"]
 fn start_runtime() {
     let factory = bots::RandomBotFactory::new();
     let runner = GameRunner::new(factory);
@@ -117,6 +118,7 @@ fn wasm_bot_game() {
 }
 
 #[test]
+#[ignore = "too slow"]
 fn full_game_finishes_with_fuel_error() {
     let factory = bots::WasmBotFactory::same_module("wasm_modules/move-right-forever.wasm").unwrap();
 

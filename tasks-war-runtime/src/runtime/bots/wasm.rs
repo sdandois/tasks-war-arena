@@ -1,3 +1,9 @@
+use std::{
+    fs::{DirBuilder, File},
+    io::Write,
+    path::{Path, PathBuf},
+};
+
 use wasmtime::*;
 use wasmtime_wasi::{sync::WasiCtxBuilder, WasiCtx};
 
@@ -21,8 +27,8 @@ struct ModuleState {
 #[derive(Clone)]
 pub struct WasmBotFactory {
     engine: Engine,
-    module_path_player0: Module,
-    module_path_player1: Module,
+    module_player0: Module,
+    module_player1: Module,
 }
 
 impl WasmBotFactory {
@@ -30,21 +36,79 @@ impl WasmBotFactory {
         Self::new(module_path_player0, module_path_player0)
     }
 
-    pub fn new(
-        module_path_player0: &'static str,
-        module_path_player1: &'static str,
-    ) -> Result<WasmBotFactory> {
+    pub fn from_cache(cache_prefix: &Path) -> Result<WasmBotFactory> {
+        let engine = Self::create_engine()?;
+
+        let mut path_base_0 = PathBuf::from(cache_prefix);
+        let mut path_base_1 = PathBuf::from(cache_prefix);
+
+        path_base_0.push("player0");
+        path_base_1.push("player1");
+
+        unsafe {
+            let module0 = Module::deserialize_file(&engine, path_base_0)?;
+            let module1 = Module::deserialize_file(&engine, path_base_1)?;
+
+            Ok(WasmBotFactory {
+                engine: engine.clone(),
+                module_player0: module0,
+                module_player1: module1,
+            })
+        }
+    }
+
+    pub fn fetch_from_cache(
+        cache_prefix: impl AsRef<Path>,
+        creator: impl Fn() -> Result<WasmBotFactory>
+    ) -> WasmBotFactory {
+        WasmBotFactory::from_cache(cache_prefix.as_ref()).unwrap_or_else(|_| {
+            let f = creator().unwrap();
+            f.dump(cache_prefix.as_ref());
+            f
+        })
+    }
+
+
+    fn create_engine() -> Result<Engine> {
         let mut config = Config::default();
 
         config.async_support(true).consume_fuel(true);
 
-        let engine = Engine::new(&config)?;
+        Engine::new(&config)
+    }
 
+    pub fn new(
+        module_path_player0: &'static str,
+        module_path_player1: &'static str,
+    ) -> Result<WasmBotFactory> {
+        let engine = Self::create_engine()?;
         Ok(WasmBotFactory {
             engine: engine.clone(),
-            module_path_player0: Module::from_file(&engine, module_path_player0)?,
-            module_path_player1: Module::from_file(&engine, module_path_player1)?,
+            module_player0: Module::from_file(&engine, module_path_player0)?,
+            module_player1: Module::from_file(&engine, module_path_player1)?,
         })
+    }
+
+    pub fn dump(&self, directory: &Path) {
+        let mut path_base_0 = PathBuf::from(directory);
+        let mut path_base_1 = PathBuf::from(directory);
+
+        DirBuilder::new().recursive(true).create(directory).unwrap();
+
+        path_base_0.push("player0");
+        path_base_1.push("player1");
+
+        let v = self.module_player0.serialize().unwrap();
+
+        let mut file = File::create(path_base_0).unwrap();
+
+        file.write_all(&v).unwrap();
+
+        let v = self.module_player1.serialize().unwrap();
+
+        let mut file = File::create(path_base_1).unwrap();
+
+        file.write_all(&v).unwrap();
     }
 }
 
@@ -232,8 +296,9 @@ impl WasmRunner {
         self.link_module().await;
     }
 
+    #[allow(dead_code)]
     async fn run_default(&mut self) -> Result<()> {
-        println!("{:?} Running run function...", self.task_id);
+        println!("{:?} Running default function...", self.task_id);
 
         self.linker
             .get_default(&mut (self.store), "")
@@ -245,9 +310,8 @@ impl WasmRunner {
     }
 
     #[allow(dead_code)]
-    async fn run_run_fn(&mut self) {
-        let _ = self
-            .linker
+    async fn run_run_fn(&mut self) -> Result<()> {
+        self.linker
             .get(&mut self.store, "", "run")
             .unwrap()
             .into_func()
@@ -256,7 +320,19 @@ impl WasmRunner {
             .unwrap()
             .call_async(&mut self.store, ())
             .await
-            .unwrap();
+    }
+
+    async fn run_main_fn(&mut self) -> Result<()> {
+        self.linker
+            .get(&mut self.store, "", "main")
+            .unwrap()
+            .into_func()
+            .unwrap()
+            .typed::<(i32, i32), i32>(&self.store)
+            .unwrap()
+            .call_async(&mut self.store, (0, 0))
+            .await
+            .map(|_| ())
     }
 }
 
@@ -269,7 +345,7 @@ impl WasmBot {
             let mut runner = WasmRunner::new(engine, module, task_id, tx_out, rx_in);
 
             runner.prepare().await;
-            let res: Result<_> = runner.run_default().await;
+            let res: Result<_> = runner.run_main_fn().await;
 
             if res.is_err() {
                 let err = res.unwrap_err();
@@ -316,8 +392,8 @@ impl BotFactory for WasmBotFactory {
 
     async fn create_bot(&self, task_id: TaskId) -> Self::B {
         let module = match task_id {
-            TaskId(0, _) => self.module_path_player0.clone(),
-            TaskId(1, _) => self.module_path_player1.clone(),
+            TaskId(0, _) => self.module_player0.clone(),
+            TaskId(1, _) => self.module_player1.clone(),
             _ => panic!("invalid player"),
         };
         WasmBot::spawn(self.engine.clone(), module, task_id)

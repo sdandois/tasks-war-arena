@@ -8,18 +8,8 @@ extern "C" {
 }
 
 fn main() {
-    println!("main function");
-    // for (key, value) in std::env::vars() {
-    //     println!("{key}: {value}");
-    // }
-
     unsafe {
-        for i in 0..10 {
-            println!(
-                "{}: Round {}",
-                std::env::var("PLAYER").unwrap_or(String::from("(unknown)")),
-                i
-            );
+        for _i in 0..10 {
             look(17, 23);
         }
     }
