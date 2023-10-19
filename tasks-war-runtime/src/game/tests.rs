@@ -165,13 +165,13 @@ fn display_empty_board() {
     s2.push_str("____\n");
     s2.push_str("____\n");
 
-    let s = format!("{}", game);
+    let s = format!("{}", game.board);
 
     assert_eq!(s2, s);
 }
 
 #[test]
-fn display_game() {
+fn display_board() {
     let task0 = Task::new(0, (2, 1));
     let task1 = Task::new(1, (3, 3));
 
@@ -191,7 +191,7 @@ fn display_game() {
     s2.push_str("_0__\n");
     s2.push_str("___1\n");
 
-    let s = format!("{}", game);
+    let s = format!("{}", game.board);
 
     assert_eq!(s2, s);
 }
@@ -460,4 +460,50 @@ fn kill_task_with_friends() {
     } else {
         panic!("expected tasks")
     }
+}
+
+#[test]
+fn formatting() {
+    let mut game = Game::from_config(GameConfig {
+        board_size: BoardSize(10, 10),
+        seed: 124,
+    });
+
+    game.kill(TaskId(0, 0));
+
+    let string = game.to_string();
+
+    let expected = r"Board size: 10 10
+Player 0 points: 0
+Player 1 points: 0
+
+Player 0 tasks: D
+Player 1 tasks: A
+_________G
+___G___G__
+_____G____
+______G___
+__________
+1________G
+______G_GG
+__G__G__G_
+________G_
+_G________
+";
+
+    assert_eq!(expected, string);
+}
+
+#[test]
+fn get_config() {
+    let config = GameConfig {
+        seed: 1024,
+        board_size: BoardSize(10, 10),
+    };
+
+    let game = Game::from_config(config.clone());
+
+    let returned_config = game.get_config();
+
+    assert_eq!(*returned_config, config);
 }

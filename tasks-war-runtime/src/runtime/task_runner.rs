@@ -4,12 +4,15 @@ use std::sync::MutexGuard;
 
 use tokio::sync::mpsc;
 
-use crate::game::Game;
+use tracing::{event, Level};
+
 use crate::game::TaskId;
+use crate::game_replay::CommandResponse;
+use crate::game_replay::GameWithHistory;
 
 use super::{TaskContext, WrappedGame};
 
-use super::bots::{Bot, Command};
+use super::bots::Bot;
 
 #[derive(Default)]
 pub enum TaskRequest {
@@ -53,7 +56,7 @@ impl<B: Bot> TaskRunner<B> {
     }
     pub async fn run(&mut self) {
         while let Some(_content) = self.rx.recv().await {
-            println!(
+            event!(Level::INFO,
                 "{:?}: at {:?} with {} of fuel",
                 self.task_id,
                 self.borrow_game().get_task(self.task_id).pos,
@@ -65,68 +68,61 @@ impl<B: Bot> TaskRunner<B> {
             match task_response {
                 Some(resp) => self.tx.send(resp).await.unwrap(),
                 None => {  
-                    println!("{:?} no more to poll.", self.task_id);
+                    event!(Level::INFO,"{:?} no more to poll.", self.task_id);
                     break;
                 }
             }
         }
-        println!("{:?} channel closed, awaiting bot...", self.task_id);
+        event!(Level::INFO,"{:?} channel closed, awaiting bot...", self.task_id);
         self.bot.wait().await;
-        println!("{:?} channel closed, awaiting bot... Done.", self.task_id);
+        event!(Level::INFO,"{:?} channel closed, awaiting bot... Done.", self.task_id);
     }
 
     async fn do_play(&mut self) -> Option<TaskResponse> {
         let (command, consumed_fuel) = self.bot.poll().await?;
         self.borrow_context().used_fuel += consumed_fuel as isize;
 
-
         let task_id = {
             let task_context = self.borrow_context();
 
             task_context.task_id
         };
-        let res = match command {
-            Command::Move(random_delta, random_dir) => {
-                self.borrow_game()
-                    .move_task(task_id, random_delta, random_dir);
-                self.bot.update(None).await;
 
-                TaskResponse::default()
-            }
-            Command::Split => {
-                let res = self.borrow_game().split(task_id);
+        let res = self.borrow_game().accept(task_id, &command);
 
-                self.bot.update(None).await;
-                match res {
-                    Ok(tid) => TaskResponse::NewTask(tid),
-                    _ => TaskResponse::None,
-                }
-            }
-            Command::Look(delta_x, delta_y) => {
-                let res = self.borrow_game().look(task_id, delta_x, delta_y);
+        self.bot_update(&res).await;
 
-                self.bot.update(Some(res)).await;
-
-                TaskResponse::None
-            }
-            Command::Pass => TaskResponse::None,
+        let task_response = match res {
+            CommandResponse::NewTask(tid) => TaskResponse::NewTask(tid),
+            _ => TaskResponse::None,
         };
 
-        println!(
+        event!(Level::INFO,
             "{:?}: after {:?} at {:?}",
             self.task_id,
             command,
             self.borrow_game().get_task(self.task_id).pos
         );
 
-        Some(res)
+        Some(task_response)
+    }
+
+    async fn bot_update(&mut self, command_resp: &CommandResponse) {
+        match command_resp {
+            CommandResponse::Look(look_result) => {
+                self.bot.update(Some(*look_result)).await;
+            }
+            _ => {
+                self.bot.update(None).await;
+            }
+        };
     }
 
     fn borrow_context(&self) -> MutexGuard<'_, TaskContext> {
         self.context.lock().unwrap()
     }
 
-    fn borrow_game(&self) -> MutexGuard<'_, Game> {
+    fn borrow_game(&self) -> MutexGuard<'_, GameWithHistory> {
         self.game.lock().unwrap()
     }
 }

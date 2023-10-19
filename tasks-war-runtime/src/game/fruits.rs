@@ -30,7 +30,7 @@ impl fmt::Display for Fruit {
         match &self {
             Fruit::Grape => write!(f, "G"),
             Fruit::Banana => write!(f, "B"),
-            Fruit::Strawberry => write!(f, "F"),
+            Fruit::Strawberry => write!(f, "S"),
         }
     }
 }

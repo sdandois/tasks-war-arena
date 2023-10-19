@@ -1,3 +1,5 @@
+use tracing_subscriber::filter::LevelFilter;
+
 use crate::game::Direction;
 
 use super::*;
@@ -88,6 +90,49 @@ fn if_look_result_is_empty_move_left() {
     assert_eq!(result.get_task(TaskId(0, 0)).pos, (10, 24));
 }
 
+#[test]
+fn dont_play_if_killed() {
+    let subscriber = tracing_subscriber::fmt()
+        .compact()
+        .with_ansi(atty::is(atty::Stream::Stdout))
+        .with_file(false)
+        .with_line_number(false)
+        .with_thread_ids(false)
+        .with_target(false)
+        .with_level(true)
+        .with_max_level(LevelFilter::DEBUG)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+    let mut factory = bots::MockedBotFactory::new()
+        .mock(TaskId(0, 0), Command::Pass)
+        .mock(TaskId(1, 0), Command::Split)
+        .mock(TaskId(1, 1), Command::Move(1, Direction::Down));
+
+    for _i in 0..24 {
+        factory = factory.mock(TaskId(0, 0), Command::Move(1, Direction::Down));
+        factory = factory.mock(TaskId(1, 0), Command::Pass);
+    }
+
+    for _i in 0..3 {
+        factory = factory.mock(TaskId(0, 0), Command::Move(1, Direction::Left));
+        factory = factory.mock(TaskId(1, 0), Command::Pass);
+    }
+
+    factory = factory.mock(TaskId(0, 0), Command::Move(1, Direction::Left));
+    factory = factory.mock(TaskId(1, 0), Command::Move(1, Direction::Up));
+
+    let runner = GameRunner::new(factory);
+
+    let result = runner.run_some_rounds(100);
+
+    assert!(result.get_task(TaskId(1, 0)).is_dead);
+
+    println!("{:?}", result.get_task(TaskId(0, 0)).pos);
+    println!("{:?}", result.get_task(TaskId(1, 0)).pos);
+    println!("{}", result);
+}
+
 #[tokio::test]
 async fn task_handle_comparison() {
     let t1 = test_factory::create_task_handle(TaskId(0, 1), 2);
@@ -110,7 +155,8 @@ fn if_bot_panicks_runner_should_finish() {
 
 #[test]
 fn wasm_bot_game() {
-    let factory = bots::WasmBotFactory::same_module("wasm_modules/move-right-forever.wasm").unwrap();
+    let factory =
+        bots::WasmBotFactory::same_module("wasm_modules/move-right-forever.wasm").unwrap();
 
     let runner = crate::runtime::GameRunner::new(factory);
 
@@ -120,7 +166,8 @@ fn wasm_bot_game() {
 #[test]
 #[ignore = "too slow"]
 fn full_game_finishes_with_fuel_error() {
-    let factory = bots::WasmBotFactory::same_module("wasm_modules/move-right-forever.wasm").unwrap();
+    let factory =
+        bots::WasmBotFactory::same_module("wasm_modules/move-right-forever.wasm").unwrap();
 
     let runner = crate::runtime::GameRunner::new(factory);
 

@@ -11,12 +11,15 @@ pub mod tasks;
 #[cfg(test)]
 mod tests;
 
+pub use board::BoardSize;
 use board::*;
-use commons::*;
+pub use commons::*;
 use fruits::*;
 pub use tasks::*;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum Direction {
     Up,
     Down,
@@ -39,6 +42,22 @@ pub struct Game {
     board_size: BoardSize,
     board: Board,
     player_points: Vec<usize>,
+    config: GameConfig,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GameConfig {
+    pub board_size: BoardSize,
+    pub seed: u64,
+}
+
+impl Default for GameConfig {
+    fn default() -> Self {
+        Self {
+            board_size: Default::default(),
+            seed: 32,
+        }
+    }
 }
 
 pub mod error_messages {
@@ -55,10 +74,10 @@ impl Game {
         Game::with_full_customization(Some(tasks), None, None)
     }
 
-    pub fn from_seed(seed: u64) -> Game {
-        let mut rng = rand::rngs::SmallRng::seed_from_u64(seed);
+    pub fn from_config(config: GameConfig) -> Game {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(config.seed);
 
-        let board_size = BoardSize(50, 50);
+        let board_size = config.board_size;
         let x_0 = rng.gen_range(0..(board_size.0 / 2));
         let y_0 = rng.gen_range(0..(board_size.1));
 
@@ -95,7 +114,10 @@ impl Game {
             });
         }
 
-        Game::with_full_customization(Some(tasks), Some(fruits), Some(board_size))
+        let mut g = Game::with_full_customization(Some(tasks), Some(fruits), Some(board_size));
+        g.config = config;
+
+        g
     }
 
     fn with_full_customization(
@@ -143,7 +165,7 @@ impl Game {
 
         for i in 0..final_tasks.len() {
             for j in 0..final_tasks[i].len() {
-                let t = &final_tasks[i][j];
+                let t: &Task = &final_tasks[i][j];
 
                 board.add_task(t.pos, TaskId(i, j))
             }
@@ -158,11 +180,16 @@ impl Game {
             board_size: final_board_size,
             board: board,
             player_points: vec![0, 0],
+            config: Default::default(),
         }
     }
 
     pub fn get_tasks(&self, player: Player) -> &[Task] {
         self.tasks[player].as_slice()
+    }
+
+    pub fn get_config(&self) -> &GameConfig {
+        &self.config
     }
 
     fn calculate_new_pos(
@@ -202,6 +229,8 @@ impl Game {
     }
 
     pub fn move_task(&mut self, task_id: TaskId, delta: usize, dir: Direction) -> Position {
+        debug_assert!(!self.get_task(task_id).is_dead);
+
         let (old_pos, new_pos) = self.calculate_new_pos(task_id, delta, dir);
 
         let mut old_pos_content = std::mem::take(self.board.get_content_mut(old_pos));
@@ -268,6 +297,8 @@ impl Game {
     }
 
     pub fn look(&self, task_id: TaskId, delta_x: isize, delta_y: isize) -> LookResult {
+        debug_assert!(!self.get_task(task_id).is_dead);
+
         let task = self.get_task(task_id);
         if (delta_x.abs() + delta_y.abs()) as usize > task.look_distance() {
             return LookResult::Null;
@@ -304,6 +335,8 @@ impl Game {
     }
 
     pub fn split(&mut self, task_id: TaskId) -> Result<TaskId, GameError> {
+        debug_assert!(!self.get_task(task_id).is_dead);
+
         if self.get_task(task_id).weight < 2 {
             return Err(error_messages::NOT_ENOUGH_WEIGHT);
         }
@@ -352,16 +385,38 @@ impl Game {
 
         self.board.remove_task(pos, tid);
     }
+
+    fn display_header(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Board size: {} {}\n",
+            self.board_size.0, self.board_size.1
+        )?;
+        // write!(f, "Seed: {}\n\n", self.seed)?;
+        write!(f, "Player 0 points: {}\n", self.player_points[0])?;
+        write!(f, "Player 1 points: {}\n\n", self.player_points[1])?;
+
+        for player in 0..2 {
+            write!(f, "Player {} tasks: ", player)?;
+
+            for t in self.get_tasks(player) {
+                if t.is_dead {
+                    write!(f, "D")?;
+                } else {
+                    write!(f, "A")?;
+                }
+            }
+            write!(f, "\n")?;
+        }
+
+        Ok(())
+    }
 }
 
 impl fmt::Display for Game {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for i in 0..self.board_size.0 {
-            for j in 0..self.board_size.1 {
-                write!(f, "{}", self.board.get_content((i, j)))?;
-            }
-            write!(f, "\n")?;
-        }
+        self.display_header(f)?;
+        self.board.fmt(f)?;
 
         Ok(())
     }

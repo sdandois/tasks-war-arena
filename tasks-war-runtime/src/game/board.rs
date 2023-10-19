@@ -1,9 +1,18 @@
+use serde::{Deserialize, Serialize};
+
 use super::commons::*;
 use super::fruits::*;
 use super::tasks::*;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+
 pub struct BoardSize(pub usize, pub usize);
+
+impl Default for BoardSize {
+    fn default() -> Self {
+        Self(50, 50)
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub enum BoardContent {
@@ -72,6 +81,21 @@ impl Board {
             }
             _ => panic!("expected tasks"),
         }
+    }
+}
+
+impl std::fmt::Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let rows = self.0.len();
+        let columns = self.0[0].len();
+        for i in 0..rows {
+            for j in 0..columns {
+                write!(f, "{}", self.get_content((i, j)))?;
+            }
+            write!(f, "\n")?;
+        }
+
+        Ok(())
     }
 }
 

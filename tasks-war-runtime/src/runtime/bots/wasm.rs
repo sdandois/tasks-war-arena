@@ -4,6 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use tracing::{event, Level};
+
 use wasmtime::*;
 use wasmtime_wasi::{sync::WasiCtxBuilder, WasiCtx};
 
@@ -32,8 +34,8 @@ pub struct WasmBotFactory {
 }
 
 impl WasmBotFactory {
-    pub fn same_module(module_path_player0: &'static str) -> Result<WasmBotFactory> {
-        Self::new(module_path_player0, module_path_player0)
+    pub fn same_module(module_path_player0: impl AsRef<Path>) -> Result<WasmBotFactory> {
+        Self::new(module_path_player0.as_ref(), module_path_player0.as_ref())
     }
 
     pub fn from_cache(cache_prefix: &Path) -> Result<WasmBotFactory> {
@@ -59,7 +61,7 @@ impl WasmBotFactory {
 
     pub fn fetch_from_cache(
         cache_prefix: impl AsRef<Path>,
-        creator: impl Fn() -> Result<WasmBotFactory>
+        creator: impl Fn() -> Result<WasmBotFactory>,
     ) -> WasmBotFactory {
         WasmBotFactory::from_cache(cache_prefix.as_ref()).unwrap_or_else(|_| {
             let f = creator().unwrap();
@@ -67,7 +69,6 @@ impl WasmBotFactory {
             f
         })
     }
-
 
     fn create_engine() -> Result<Engine> {
         let mut config = Config::default();
@@ -78,8 +79,8 @@ impl WasmBotFactory {
     }
 
     pub fn new(
-        module_path_player0: &'static str,
-        module_path_player1: &'static str,
+        module_path_player0: impl AsRef<Path>,
+        module_path_player1: impl AsRef<Path>,
     ) -> Result<WasmBotFactory> {
         let engine = Self::create_engine()?;
         Ok(WasmBotFactory {
@@ -279,7 +280,7 @@ impl WasmRunner {
     }
 
     async fn link_module(&mut self) {
-        println!("Linking our module...");
+        event!(Level::INFO, "Linking our module...");
         self.linker
             .module_async(&mut self.store, "", &self.module)
             .await
@@ -298,7 +299,11 @@ impl WasmRunner {
 
     #[allow(dead_code)]
     async fn run_default(&mut self) -> Result<()> {
-        println!("{:?} Running default function...", self.task_id);
+        event!(
+            Level::INFO,
+            "{:?} Running default function...",
+            self.task_id
+        );
 
         self.linker
             .get_default(&mut (self.store), "")
@@ -349,12 +354,18 @@ impl WasmBot {
 
             if res.is_err() {
                 let err = res.unwrap_err();
-                println!(
+                event!(
+                    Level::INFO,
                     "{:?} Wasm default function finished with error: {:?}",
-                    task_id, err
+                    task_id,
+                    err
                 );
             } else {
-                println!("{:?} Wasm default function finished ok.", task_id);
+                event!(
+                    Level::INFO,
+                    "{:?} Wasm default function finished ok.",
+                    task_id
+                );
             }
         });
 

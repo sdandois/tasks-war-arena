@@ -6,8 +6,11 @@ use std::sync::MutexGuard;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use crate::game::Game;
+use tracing::{event, Level};
+
+use crate::game::GameConfig;
 use crate::game::TaskId;
+use crate::game_replay::GameWithHistory;
 
 pub mod bots;
 mod task_handle;
@@ -17,23 +20,23 @@ mod task_runner;
 mod tests;
 
 use bots::BotFactory;
-use task_runner::*;
 use task_handle::*;
+use task_runner::*;
 
 const MAX_FUEL: isize = 1500000;
 
-pub type GameResult = Game;
+pub type GameResult = GameWithHistory;
 
 pub struct GameRunner<F: BotFactory> {
     tokio_rt: tokio::runtime::Runtime,
     bot_factory: F,
 }
 
-type WrappedGame = Arc<Mutex<Game>>;
+type WrappedGame = Arc<Mutex<GameWithHistory>>;
 
 struct RunnerContext<F: BotFactory> {
     handles: BinaryHeap<TaskHandle>,
-    game: Arc<Mutex<Game>>,
+    game: WrappedGame,
     tasks: Vec<TaskId>,
     max_turns: usize,
     bot_factory: F,
@@ -80,7 +83,9 @@ impl<F: BotFactory + 'static> GameRunner<F> {
 
 impl<F: BotFactory + 'static> RunnerContext<F> {
     fn new(bot_factory: F, max_turns: usize) -> RunnerContext<F> {
-        let game: WrappedGame = Arc::new(Mutex::new(Game::from_seed(32)));
+        let game: WrappedGame = Arc::new(Mutex::new(GameWithHistory::from_config(
+            GameConfig::default(),
+        )));
         let tasks = game.lock().unwrap().get_all_task_ids();
 
         RunnerContext {
@@ -102,11 +107,15 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
             let res = i.await;
 
             if res.is_err() {
-                println!("Task  finished with error: {:?} ", res.unwrap_err());
+                event!(
+                    Level::INFO,
+                    "Task  finished with error: {:?} ",
+                    res.unwrap_err()
+                );
             }
         }
 
-        println!("handles joined")
+        event!(Level::INFO, "handles joined")
     }
 
     async fn play_rounds(&mut self) {
@@ -118,37 +127,39 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
                 break;
             }
 
-            next_task.tx.send(TaskRequest::None).await.unwrap();
-            let message = next_task.rx.recv().await;
-
-            if let Some(TaskResponse::NewTask(tid)) = message {
-                self.spawn_task(tid, next_task.context.lock().unwrap().used_fuel)
-                    .await;
-            }
-
-            if let None = message {
-                println!("{:?} has panicked", next_task.task_id);
-                std::mem::drop(next_task.tx);
-                let _ = next_task.handle.await;
-            } else if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
-                println!("{:?} has run out of fuel", next_task.task_id);
-                self.borrow_game().kill(next_task.task_id);
-                std::mem::drop(next_task.tx);
-                let _ = next_task.handle.await;
-            } else if self.borrow_game().get_task(next_task.task_id).is_dead {
-                println!("{:?} has been found dead", next_task.task_id);
+            if self.borrow_game().get_task(next_task.task_id).is_dead {
+                event!(Level::INFO, "{:?} has been found dead", next_task.task_id);
                 std::mem::drop(next_task.tx);
                 let _ = next_task.handle.await;
             } else {
-                next_task.timestamp = time_counter;
-                self.handles.push(next_task);
+                next_task.tx.send(TaskRequest::None).await.unwrap();
+                let message = next_task.rx.recv().await;
+
+                if let Some(TaskResponse::NewTask(tid)) = message {
+                    self.spawn_task(tid, next_task.context.lock().unwrap().used_fuel)
+                        .await;
+                }
+
+                if let None = message {
+                    event!(Level::INFO, "{:?} has panicked", next_task.task_id);
+                    std::mem::drop(next_task.tx);
+                    let _ = next_task.handle.await;
+                } else if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
+                    event!(Level::INFO, "{:?} has run out of fuel", next_task.task_id);
+                    self.borrow_game().kill(next_task.task_id);
+                    std::mem::drop(next_task.tx);
+                    let _ = next_task.handle.await;
+                } else {
+                    next_task.timestamp = time_counter;
+                    self.handles.push(next_task);
+                }
             }
             time_counter += 1;
         }
-        println!("End of rounds {:?}", self.handles);
+        event!(Level::INFO, "End of rounds {:?}", self.handles);
     }
 
-    fn borrow_game(&self) -> MutexGuard<'_, Game> {
+    fn borrow_game(&self) -> MutexGuard<'_, GameWithHistory> {
         self.game.lock().unwrap()
     }
 

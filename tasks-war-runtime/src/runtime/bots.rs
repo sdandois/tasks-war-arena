@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use async_trait::async_trait;
 
 use crate::game::Direction;
@@ -14,7 +16,7 @@ use crate::game::TaskId;
 
 pub use wasm::WasmBotFactory;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Command {
     Move(usize, Direction),
     Look(isize, isize),

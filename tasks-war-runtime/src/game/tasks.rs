@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use super::commons::*;
 
 #[derive(Clone, Debug)]
@@ -7,7 +9,7 @@ pub struct Task {
     pub weight: usize,
     pub is_dead: bool,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct TaskId(pub usize, pub usize);
 
 impl Task {
