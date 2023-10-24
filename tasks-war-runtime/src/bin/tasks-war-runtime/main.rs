@@ -1,4 +1,6 @@
 use anyhow::Ok;
+use rand::{rngs, SeedableRng, Rng};
+use tasks_war_runtime::game::{GameConfig, BoardSize};
 use std::io::Read;
 use std::{fs::File, path::PathBuf};
 use tasks_war_runtime::game_replay::GameReplay;
@@ -22,7 +24,15 @@ fn execute_run_command(run_args: RunCommandArgs) -> anyhow::Result<()> {
 
     let factory = WasmBotFactory::new(path0, path1)?;
 
-    let runner = GameRunner::new(factory);
+    let mut seed_generator = rngs::SmallRng::from_entropy(); 
+
+    let seed: u64 = seed_generator.gen();
+    let config = GameConfig {
+        board_size: BoardSize(run_args.board_size, run_args.board_size),
+        seed,
+    };
+
+    let runner = GameRunner::with_config(factory, config);
 
     let _result = runner.run_game();
 
@@ -83,18 +93,16 @@ fn main() -> anyhow::Result<()> {
         Some(cli::Subcommands::Run(run_args)) => execute_run_command(run_args),
         Some(cli::Subcommands::Replay(replay_args)) => execute_replay_command(replay_args),
 
-        None => {
-            event!(Level::INFO, "No command...exiting");
-
-            Ok(())
-        }
+        None => Err(anyhow::anyhow!("No command...exiting")),
     };
 
     if result.is_err() {
         let err: anyhow::Error = result.unwrap_err();
         let s = err.to_string();
-        event!(Level::ERROR, s);
-    }
+        event!(Level::ERROR, "{s}");
 
-    Ok(())
+        Err(err)
+    } else {
+        Ok(())
+    }
 }

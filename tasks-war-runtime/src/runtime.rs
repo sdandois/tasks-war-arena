@@ -30,6 +30,7 @@ pub type GameResult = GameWithHistory;
 pub struct GameRunner<F: BotFactory> {
     tokio_rt: tokio::runtime::Runtime,
     bot_factory: F,
+    config: GameConfig,
 }
 
 type WrappedGame = Arc<Mutex<GameWithHistory>>;
@@ -44,12 +45,17 @@ struct RunnerContext<F: BotFactory> {
 
 impl<F: BotFactory + 'static> GameRunner<F> {
     pub fn new(bot_factory: F) -> GameRunner<F> {
+        GameRunner::with_config(bot_factory, GameConfig::default())
+    }
+
+    pub fn with_config(bot_factory: F, config: GameConfig) -> GameRunner<F> {
         GameRunner {
             tokio_rt: tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap(),
             bot_factory,
+            config,
         }
     }
 
@@ -68,7 +74,8 @@ impl<F: BotFactory + 'static> GameRunner<F> {
     }
 
     async fn start_game(&self, max_rounds: usize) -> GameResult {
-        let mut runner_context = RunnerContext::new(self.bot_factory.clone(), max_rounds);
+        let mut runner_context =
+            RunnerContext::new(self.bot_factory.clone(), max_rounds, self.config.clone());
 
         runner_context.spawn_all_tasks().await;
 
@@ -82,10 +89,8 @@ impl<F: BotFactory + 'static> GameRunner<F> {
 }
 
 impl<F: BotFactory + 'static> RunnerContext<F> {
-    fn new(bot_factory: F, max_turns: usize) -> RunnerContext<F> {
-        let game: WrappedGame = Arc::new(Mutex::new(GameWithHistory::from_config(
-            GameConfig::default(),
-        )));
+    fn new(bot_factory: F, max_turns: usize, config: GameConfig) -> RunnerContext<F> {
+        let game: WrappedGame = Arc::new(Mutex::new(GameWithHistory::from_config(config)));
         let tasks = game.lock().unwrap().get_all_task_ids();
 
         RunnerContext {

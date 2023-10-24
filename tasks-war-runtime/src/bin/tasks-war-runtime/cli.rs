@@ -22,6 +22,8 @@ pub struct RunCommandArgs {
     #[arg(short = 'o', long = "replay-output")]
     pub replay_output: Option<PathBuf>,
 
+    #[arg(short = 's', long = "board-size", default_value_t = 50)]
+    pub board_size: usize,
 }
 
 #[derive(Args, Debug)]

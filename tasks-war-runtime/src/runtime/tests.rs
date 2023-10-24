@@ -1,5 +1,4 @@
-
-use crate::game::Direction;
+use crate::game::{BoardSize, Direction};
 
 use super::*;
 
@@ -91,7 +90,6 @@ fn if_look_result_is_empty_move_left() {
 
 #[test]
 fn dont_play_if_killed() {
-
     let mut factory = bots::MockedBotFactory::new()
         .mock(TaskId(0, 0), Command::Pass)
         .mock(TaskId(1, 0), Command::Split)
@@ -171,7 +169,7 @@ async fn cloned_tasks_have_same_used_fuel() {
         .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
         .mock(TaskId(0, 0), bots::Command::Split);
 
-    let mut runner = RunnerContext::new(factory, 9);
+    let mut runner = RunnerContext::new(factory, 9, GameConfig::default());
 
     let _result = runner.spawn_all_tasks().await;
     let _result = runner.play_rounds().await;
@@ -191,4 +189,25 @@ async fn cloned_tasks_have_same_used_fuel() {
 
     assert!(used_fuel_00 > 2);
     assert_eq!(used_fuel_00, used_fuel_01);
+}
+
+#[test]
+fn create_runner_with_config() {
+    let factory = bots::MockedBotFactory::new()
+        .mock(TaskId(0, 0), bots::Command::Split)
+        .mock(TaskId(1, 0), bots::Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 1), bots::Command::Move(1, Direction::Left));
+
+    let config = GameConfig {
+        board_size: BoardSize(10, 10),
+        seed: 800,
+    };
+    let runner = GameRunner::with_config(factory, config);
+
+    let result = runner.run_some_rounds(15);
+
+    let obtained_config = result.get_config();
+
+    assert_eq!(obtained_config.board_size, BoardSize(10, 10));
+    assert_eq!(obtained_config.seed, 800);
 }

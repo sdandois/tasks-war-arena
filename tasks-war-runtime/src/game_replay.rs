@@ -121,6 +121,10 @@ impl GameWithHistory {
             config: self.game.get_config().clone(),
         }
     }
+
+    pub fn get_config(&self) -> &GameConfig {
+        self.game.get_config()
+    }
 }
 
 impl From<GameMemento> for GameReplay {
