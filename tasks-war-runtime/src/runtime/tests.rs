@@ -1,4 +1,3 @@
-use tracing_subscriber::filter::LevelFilter;
 
 use crate::game::Direction;
 
@@ -92,18 +91,7 @@ fn if_look_result_is_empty_move_left() {
 
 #[test]
 fn dont_play_if_killed() {
-    let subscriber = tracing_subscriber::fmt()
-        .compact()
-        .with_ansi(atty::is(atty::Stream::Stdout))
-        .with_file(false)
-        .with_line_number(false)
-        .with_thread_ids(false)
-        .with_target(false)
-        .with_level(true)
-        .with_max_level(LevelFilter::DEBUG)
-        .finish();
 
-    tracing::subscriber::set_global_default(subscriber).unwrap();
     let mut factory = bots::MockedBotFactory::new()
         .mock(TaskId(0, 0), Command::Pass)
         .mock(TaskId(1, 0), Command::Split)

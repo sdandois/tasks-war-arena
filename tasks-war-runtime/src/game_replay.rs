@@ -133,12 +133,6 @@ impl From<GameMemento> for GameReplay {
     }
 }
 
-impl Display for GameReplay {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.game)
-    }
-}
-
 impl Display for GameWithHistory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.game)
@@ -146,11 +140,17 @@ impl Display for GameWithHistory {
 }
 
 impl GameReplay {
-    fn advance(&mut self) {
-        let HistoryEntry { task_id, command } = self.history[self.cursor].clone();
-        self.cursor += 1;
+    pub fn advance(&mut self) -> Option<()> {
+        if self.cursor < self.history.len() {
+            let HistoryEntry { task_id, command } = self.history[self.cursor].clone();
+            self.cursor += 1;
 
-        self.accept(task_id, &command);
+            self.accept(task_id, &command);
+
+            Some(())
+        } else {
+            None
+        }
     }
 
     pub fn accept(&mut self, task_id: TaskId, command: &Command) {
@@ -166,6 +166,10 @@ impl GameReplay {
             }
             Command::Pass => (),
         }
+    }
+
+    pub fn current(&self) -> &Game {
+        &self.game
     }
 }
 
@@ -200,7 +204,7 @@ _____
 __G__
 ";
 
-        assert_eq!(exp_str, game_replay.to_string());
+        assert_eq!(exp_str, game_replay.current().to_string());
 
         game_replay.advance();
 
@@ -217,7 +221,7 @@ _____
 __G__
 ";
 
-        assert_eq!(exp_str, game_replay.to_string());
+        assert_eq!(exp_str, game_replay.current().to_string());
 
         game_replay.advance();
 
@@ -233,7 +237,7 @@ _1___
 _____
 __G__
 ";
-        print!("{game_replay}");
-        assert_eq!(exp_str, game_replay.to_string());
+        print!("{}", game_replay.current());
+        assert_eq!(exp_str, game_replay.current().to_string());
     }
 }

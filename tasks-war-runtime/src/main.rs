@@ -1,21 +1,65 @@
+use anyhow::Ok;
+use std::io::Read;
 use std::{fs::File, path::PathBuf};
-use tasks_war_runtime::runtime::bots::WasmBotFactory;
+use tasks_war_runtime::game_replay::GameReplay;
 use tasks_war_runtime::runtime::GameRunner;
+use tasks_war_runtime::{game_replay::GameMemento, runtime::bots::WasmBotFactory};
 
-use clap::{arg, Parser};
+use clap::*;
 
+use tracing::{event, Level};
 use tracing_subscriber::filter::LevelFilter;
 
 use atty::Stream;
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    player_0_module_path: PathBuf,
-    player_1_module_path: PathBuf,
+mod cli;
 
-    #[arg(short = 'o', long = "replay-file")]
-    replay_file: Option<PathBuf>,
+use cli::{Args, ReplayCommandArgs, RunCommandArgs};
+
+fn execute_run_command(run_args: RunCommandArgs) -> anyhow::Result<()> {
+    let path0: PathBuf = run_args.player_0_module_path;
+    let path1: PathBuf = run_args.player_1_module_path;
+
+    let factory = WasmBotFactory::new(path0, path1)?;
+
+    let runner = GameRunner::new(factory);
+
+    let _result = runner.run_game();
+
+    if let Some(replay_file) = run_args.replay_output {
+        let f = File::create(replay_file)?;
+
+        let memento = _result.dump();
+
+        serde_json::to_writer(f, &memento)?;
+    };
+
+    Ok(())
+}
+
+fn execute_replay_command(replay_args: ReplayCommandArgs) -> anyhow::Result<()> {
+    let path = replay_args.replay_input;
+
+    let f = File::open(path)?;
+
+    let memento: GameMemento = serde_json::from_reader(f)?;
+
+    let mut game_replay = GameReplay::from(memento);
+
+    while let Some(()) = game_replay.advance() {
+        println!("{}", game_replay.current());
+
+        println!("Press ENTER to continue...");
+        let buffer = &mut [0u8];
+
+        if replay_args.interactive {
+            std::io::stdin().read_exact(buffer)?;
+        }
+    }
+
+    println!("Replay finished");
+
+    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
@@ -33,22 +77,23 @@ fn main() -> anyhow::Result<()> {
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
+    event!(Level::INFO, "Starting execution...");
 
-    let path0: PathBuf = args.player_0_module_path;
-    let path1: PathBuf = args.player_1_module_path;
+    let result = match args.command {
+        Some(cli::Subcommands::Run(run_args)) => execute_run_command(run_args),
+        Some(cli::Subcommands::Replay(replay_args)) => execute_replay_command(replay_args),
 
-    let factory = WasmBotFactory::new(path0, path1)?;
+        None => {
+            event!(Level::INFO, "No command...exiting");
 
-    let runner = GameRunner::new(factory);
+            Ok(())
+        }
+    };
 
-    let _result = runner.run_game();
-
-    if let Some(replay_file) = args.replay_file {
-        let f = File::create(replay_file)?;
-
-        let memento = _result.dump();
-
-        serde_json::to_writer(f, &memento)?;
+    if result.is_err() {
+        let err: anyhow::Error = result.unwrap_err();
+        let s = err.to_string();
+        event!(Level::ERROR, s);
     }
 
     Ok(())
