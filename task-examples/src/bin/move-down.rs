@@ -15,7 +15,7 @@ fn main() {
     // }
 
     unsafe {
-        for i in 0..10 {
+        for _i in 0..10 {
             // println!(
             //     "{}: Round {}",
             //     std::env::var("PLAYER").unwrap_or(String::from("(unknown)")),

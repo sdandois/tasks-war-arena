@@ -7,15 +7,13 @@ edition = "2021"
 name = "tasks_war_runtime"
 path = "src/lib.rs"
 
-# [[bin]]
-# name = "task-war-runtime"
-# path = "src/bin.rs"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wasmtime = "^13.0.0" 
-wasmtime-wasi = "^13.0.0"
+wasmtime = "14.0.1" 
+wasmtime-wasi = "14.0.1"
 tokio = { version = "1", features = ["full"] }
 rand = "0"
 async-trait = "*"
