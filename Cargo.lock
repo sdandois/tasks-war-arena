@@ -1595,6 +1595,13 @@ checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
 [[package]]
 name = "task-examples"
 version = "0.1.0"
+dependencies = [
+ "tasks-war-bindings",
+]
+
+[[package]]
+name = "tasks-war-bindings"
+version = "0.1.0"
 
 [[package]]
 name = "tasks-war-runtime"
