@@ -1,5 +1,4 @@
 use std::fmt;
-use std::vec;
 
 use rand::Rng;
 use rand::SeedableRng;
@@ -387,12 +386,6 @@ impl Game {
     }
 
     fn display_header(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Board size: {} {}\n",
-            self.board_size.0, self.board_size.1
-        )?;
-        // write!(f, "Seed: {}\n\n", self.seed)?;
         write!(f, "Player 0 points: {}\n", self.player_points[0])?;
         write!(f, "Player 1 points: {}\n\n", self.player_points[1])?;
 

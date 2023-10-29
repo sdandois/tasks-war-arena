@@ -1,8 +1,8 @@
 use anyhow::Ok;
-use rand::{rngs, SeedableRng, Rng};
-use tasks_war_runtime::game::{GameConfig, BoardSize};
+use rand::{rngs, Rng, SeedableRng};
 use std::io::Read;
 use std::{fs::File, path::PathBuf};
+use tasks_war_runtime::game::{BoardSize, GameConfig};
 use tasks_war_runtime::game_replay::GameReplay;
 use tasks_war_runtime::runtime::GameRunner;
 use tasks_war_runtime::{game_memento::GameMemento, runtime::bots::WasmBotFactory};
@@ -24,9 +24,11 @@ fn execute_run_command(run_args: RunCommandArgs) -> anyhow::Result<()> {
 
     let factory = WasmBotFactory::new(path0, path1)?;
 
-    let mut seed_generator = rngs::SmallRng::from_entropy(); 
+    let seed: u64 = run_args.seed.unwrap_or_else(|| {
+        let mut seed_generator = rngs::SmallRng::from_entropy();
 
-    let seed: u64 = seed_generator.gen();
+        seed_generator.gen()
+    });
     let config = GameConfig {
         board_size: BoardSize(run_args.board_size, run_args.board_size),
         seed,
@@ -56,9 +58,12 @@ fn execute_replay_command(replay_args: ReplayCommandArgs) -> anyhow::Result<()> 
 
     let mut game_replay = GameReplay::from(memento);
 
-    while let Some(()) = game_replay.advance_skipping_looks() {
+    println!("{:?}\n\n", game_replay.current().get_config());
+
+    while let Some(entry) = game_replay.advance_skipping_looks() {
         println!("{}", game_replay.current());
 
+        println!("{entry}");
         println!("Press ENTER to continue...");
         let buffer = &mut [0u8];
 

@@ -1,0 +1,47 @@
+{
+    "name": "game_memento",
+    "type": "record",
+    "fields": [
+        {
+            "name": "config",
+            "type": "record",
+            "fields": [
+                {
+                    "name": "board_size",
+                    "type": "array",
+                    "items": "long",
+                    "default": [
+                        50,
+                        50
+                    ]
+                },
+                {
+                    "name": "seed",
+                    "type": "long",
+                    "default": 1001
+                }
+            ]
+        },
+        {
+            "name": "history",
+            "type": "array",
+            "default": [],
+            "items": {
+                "type": "record",
+                "name": "history_entry",
+                "fields": [
+                    {
+                        "type": "array",
+                        "name": "task_id",
+                        "items": "int"
+                    },
+                    {
+                        "type": "map",
+                        "name": "command",
+                        "values": "int"
+                    }
+                ]
+            }
+        }
+    ]
+}

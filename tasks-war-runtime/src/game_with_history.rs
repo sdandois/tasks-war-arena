@@ -1,8 +1,7 @@
 use std::fmt;
 use std::fmt::Display;
 
-use serde::{Deserialize, Serialize};
-
+use crate::command::{Command, CommandResponse};
 use crate::game::*;
 use crate::game_memento::*;
 
@@ -10,20 +9,6 @@ use crate::game_memento::*;
 pub struct GameWithHistory {
     game: Game,
     history: Vec<HistoryEntry>,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Command {
-    Move(usize, Direction),
-    Look(isize, isize),
-    Split,
-    Pass,
-}
-
-pub enum CommandResponse {
-    None,
-    Look(LookResult),
-    NewTask(TaskId),
 }
 
 impl GameWithHistory {
@@ -43,10 +28,7 @@ impl GameWithHistory {
     }
 
     pub fn accept(&mut self, task_id: TaskId, command: &Command) -> CommandResponse {
-        self.history.push(HistoryEntry {
-            task_id,
-            command: command.clone(),
-        });
+        self.history.push(HistoryEntry::new(task_id, command.clone()));
         match command {
             Command::Move(random_delta, random_dir) => {
                 self.game.move_task(task_id, *random_delta, *random_dir);
@@ -97,23 +79,5 @@ impl GameWithHistory {
 impl Display for GameWithHistory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.game)
-    }
-}
-
-impl Command {
-    pub fn is_look(&self) -> bool {
-        match self {
-            Command::Look(_, _) => true,
-            _ => false,
-        }
-    }
-
-    pub fn extra_consumed_fuel(&self) -> u64 {
-        match self {
-            Command::Move(_, _) => 1024,
-            Command::Look(_, _) => 128,
-            Command::Split => 1,
-            Command::Pass => 0,
-        }
     }
 }

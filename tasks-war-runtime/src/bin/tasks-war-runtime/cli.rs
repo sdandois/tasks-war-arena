@@ -24,6 +24,9 @@ pub struct RunCommandArgs {
 
     #[arg(short = 's', long = "board-size", default_value_t = 50)]
     pub board_size: usize,
+
+    #[arg(long = "seed")]
+    pub seed: Option<u64>,
 }
 
 #[derive(Args, Debug)]

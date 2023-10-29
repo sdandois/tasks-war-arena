@@ -1,6 +1,6 @@
 use crate::{
     game::{BoardSize, Direction},
-    game_with_history::Command,
+    command::Command,
 };
 
 use super::*;

@@ -473,8 +473,7 @@ fn formatting() {
 
     let string = game.to_string();
 
-    let expected = r"Board size: 10 10
-Player 0 points: 0
+    let expected = r"Player 0 points: 0
 Player 1 points: 0
 
 Player 0 tasks: D

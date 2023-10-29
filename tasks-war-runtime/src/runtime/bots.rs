@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use crate::game::Direction;
 use crate::game::LookResult;
 use crate::game::TaskId;
-use crate::game_with_history::Command;
+use crate::command::Command;
 
 pub use wasm::WasmBotFactory;
 

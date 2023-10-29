@@ -1,4 +1,4 @@
-use crate::game_with_history::Command;
+use crate::command::Command;
 
 use super::game::*;
 
@@ -21,20 +21,20 @@ impl From<GameMemento> for GameReplay {
 }
 
 impl GameReplay {
-    pub fn advance(&mut self) -> Option<()> {
+    pub fn advance(&mut self) -> Option<HistoryEntry> {
         if self.cursor < self.history.len() {
-            let HistoryEntry { task_id, command } = self.history[self.cursor].clone();
+            let entry = self.history[self.cursor].clone();
             self.cursor += 1;
 
-            self.accept(task_id, &command);
+            self.accept(entry.task_id, &entry.command);
 
-            Some(())
+            Some(entry)
         } else {
             None
         }
     }
 
-    pub fn advance_skipping_looks(&mut self) -> Option<()> {
+    pub fn advance_skipping_looks(&mut self) -> Option<HistoryEntry> {
         while self.cursor < self.history.len() && self.history[self.cursor].command.is_look() {
             self.cursor += 1;
         }
@@ -82,8 +82,7 @@ mod tests {
 
         let mut game_replay = GameReplay::from(memento);
 
-        let exp_str = r"Board size: 5 5
-Player 0 points: 0
+        let exp_str = r"Player 0 points: 0
 Player 1 points: 0
 
 Player 0 tasks: A
@@ -99,8 +98,7 @@ __G__
 
         game_replay.advance();
 
-        let exp_str = r"Board size: 5 5
-Player 0 points: 0
+        let exp_str = r"Player 0 points: 0
 Player 1 points: 0
 
 Player 0 tasks: A
@@ -116,8 +114,7 @@ __G__
 
         game_replay.advance();
 
-        let exp_str = r"Board size: 5 5
-Player 0 points: 0
+        let exp_str = r"Player 0 points: 0
 Player 1 points: 16
 
 Player 0 tasks: A
@@ -148,8 +145,7 @@ __G__
 
         let mut game_replay = GameReplay::from(memento);
 
-        let exp_str = r"Board size: 5 5
-Player 0 points: 0
+        let exp_str = r"Player 0 points: 0
 Player 1 points: 0
 
 Player 0 tasks: A
@@ -165,8 +161,7 @@ __G__
 
         game_replay.advance_skipping_looks();
 
-        let exp_str = r"Board size: 5 5
-Player 0 points: 0
+        let exp_str = r"Player 0 points: 0
 Player 1 points: 0
 
 Player 0 tasks: A
@@ -182,8 +177,7 @@ __G__
 
         game_replay.advance_skipping_looks();
 
-        let exp_str = r"Board size: 5 5
-Player 0 points: 0
+        let exp_str = r"Player 0 points: 0
 Player 1 points: 16
 
 Player 0 tasks: A

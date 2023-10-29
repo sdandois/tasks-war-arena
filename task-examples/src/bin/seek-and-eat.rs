@@ -1,10 +1,8 @@
 #[link(wasm_import_module = "")]
 extern "C" {
-
     fn move_task(delta: u32, dir: u32) -> u32;
     fn look(delta_x: u32, delta_y: u32) -> u32;
     fn split() -> u32;
-
 }
 
 fn seek_food() -> (i32, i32) {
@@ -24,10 +22,10 @@ fn seek_food() -> (i32, i32) {
             delta_y = 0;
         }
 
-        look_result = unsafe { look(delta_x as u32, delta_y as u32) }; 
+        look_result = unsafe { look(delta_x as u32, delta_y as u32) };
     }
 
-    (delta_x, delta_y) 
+    (delta_x, delta_y)
 }
 
 fn long_move(target: (i32, i32)) {
