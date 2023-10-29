@@ -8,21 +8,16 @@ name = "tasks_war_runtime"
 path = "src/lib.rs"
 
 
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wasmtime = "14.0.1" 
-wasmtime-wasi = "14.0.1"
-tokio = { version = "1", features = ["full"] }
-rand = "0"
+anyhow = "1.0.75"
+apache-avro = { version = "0.16.0", features = ["derive"] }
 async-trait = "*"
-clap = { version = "4.4.6", features = ["derive"] }
+rand = "0"
+serde = { version = "1.0.189", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
 tracing = "0.1.39"
 tracing-subscriber = "0.3.17"
-atty = "0.2.14"
-serde = { version = "1.0.189", features = ["derive"] }
-apache-avro = { version = "0.16.0", features = ["derive"] }
-serde_json = "1.0.107"
-anyhow = "1.0.75"
-# futures = "0"
+wasmtime = "14.0.1"
+wasmtime-wasi = "14.0.1"

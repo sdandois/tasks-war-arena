@@ -1,2 +1,8 @@
 **/target/
 wasm_cache/
+
+tasks-war-runtime-bin/wasm_modules/
+
+# Generated files
+*.json
+*.txt

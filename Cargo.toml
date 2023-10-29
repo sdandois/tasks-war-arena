@@ -1,0 +1,4 @@
+[workspace]
+
+
+members = ["task-examples", "tasks-war-runtime", "tasks-war-runtime-bin"]
