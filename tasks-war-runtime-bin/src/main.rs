@@ -60,15 +60,29 @@ fn execute_replay_command(replay_args: ReplayCommandArgs) -> anyhow::Result<()> 
 
     println!("{:?}\n\n", game_replay.current().get_config());
 
-    while let Some(entry) = game_replay.advance_skipping_looks() {
+    if replay_args.show_all {
         println!("{}", game_replay.current());
+        while let Some(entry) = game_replay.advance() {
+            println!("{entry}");
 
-        println!("{entry}");
-        println!("Press ENTER to continue...");
-        let buffer = &mut [0u8];
+            if replay_args.interactive && !entry.command.is_look() {
+                println!("{}", game_replay.current());
+                println!("Press ENTER to continue...");
+                let buffer = &mut [0u8];
+                std::io::stdin().read_exact(buffer)?;
+            }
+        }
+    } else {
+        while let Some(entry) = game_replay.advance_skipping_looks() {
+            println!("{}", game_replay.current());
 
-        if replay_args.interactive {
-            std::io::stdin().read_exact(buffer)?;
+            println!("{entry}");
+
+            if replay_args.interactive {
+                println!("Press ENTER to continue...");
+                let buffer = &mut [0u8];
+                std::io::stdin().read_exact(buffer)?;
+            }
         }
     }
 

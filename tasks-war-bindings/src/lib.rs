@@ -8,13 +8,20 @@ pub enum Direction {
     Right,
 }
 
+/// This struct represents the possible outcomes of the
+/// `look` command.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LookResult {
-    Null,     // 0
-    None,     // 1
-    Player,   // 2
+    /// Null means 'unknown', you've tried to look to far and couldn't get an answer.
+    Null, // 0
+    /// The slot is empty.
+    None, // 1
+    /// There is a task of the same player at the slot.
+    Player, // 2
+    /// There is a task of the opponent at the slot.
     Opponent, // 3
-    Food,     // 4
+    /// There is food at the slot.
+    Food, // 4
 }
 
 impl From<Direction> for i32 {
@@ -47,8 +54,11 @@ pub fn move_task(delta: u32, dir: Direction) {
     }
 }
 
-pub fn look(delta_x: i32, delta_y: i32) -> LookResult {
-    unsafe { external::look(delta_x as i32, delta_y as i32).into() }
+/// The look command lets you seed what is present in a board tile at distance.
+///
+/// The board is indexed like matrixes, (1, 1) means one row down, and one column left.xx
+pub fn look(vertical_delta: i32, horizontal_delta: i32) -> LookResult {
+    unsafe { external::look(vertical_delta as i32, horizontal_delta as i32).into() }
 }
 
 pub fn split() {

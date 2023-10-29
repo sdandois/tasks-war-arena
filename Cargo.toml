@@ -2,7 +2,7 @@
 
 
 members = [
-    "task-examples",
+    "tasks-war-examples",
     "tasks-war-runtime",
     "tasks-war-runtime-bin",
     "tasks-war-bindings",
