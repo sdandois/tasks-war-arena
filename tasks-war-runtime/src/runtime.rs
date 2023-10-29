@@ -10,7 +10,7 @@ use tracing::{event, Level};
 
 use crate::game::GameConfig;
 use crate::game::TaskId;
-use crate::game_replay::GameWithHistory;
+use crate::game_with_history::GameWithHistory;
 
 pub mod bots;
 mod task_handle;

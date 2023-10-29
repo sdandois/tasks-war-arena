@@ -7,8 +7,8 @@ use tokio::sync::mpsc;
 use tracing::{event, Level};
 
 use crate::game::TaskId;
-use crate::game_replay::CommandResponse;
-use crate::game_replay::GameWithHistory;
+use crate::game_with_history::CommandResponse;
+use crate::game_with_history::GameWithHistory;
 
 use super::{TaskContext, WrappedGame};
 

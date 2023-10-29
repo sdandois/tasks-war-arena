@@ -6,23 +6,14 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-
 use async_trait::async_trait;
 
 use crate::game::Direction;
 use crate::game::LookResult;
 use crate::game::TaskId;
+use crate::game_with_history::Command;
 
 pub use wasm::WasmBotFactory;
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Command {
-    Move(usize, Direction),
-    Look(isize, isize),
-    Split,
-    Pass,
-}
 
 #[async_trait]
 pub trait Bot: Send {

@@ -1,8 +1,9 @@
-use crate::game::{BoardSize, Direction};
+use crate::{
+    game::{BoardSize, Direction},
+    game_with_history::Command,
+};
 
 use super::*;
-
-use super::bots::Command;
 
 mod test_factory {
     use super::*;
@@ -35,9 +36,9 @@ fn start_runtime() {
 #[test]
 fn first_move_is_split() {
     let factory = bots::MockedBotFactory::new()
-        .mock(TaskId(0, 0), bots::Command::Split)
-        .mock(TaskId(1, 0), bots::Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 1), bots::Command::Move(1, Direction::Left));
+        .mock(TaskId(0, 0), Command::Split)
+        .mock(TaskId(1, 0), Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 1), Command::Move(1, Direction::Left));
 
     let runner = GameRunner::new(factory);
 
@@ -163,11 +164,11 @@ fn full_game_finishes_with_fuel_error() {
 #[tokio::test]
 async fn cloned_tasks_have_same_used_fuel() {
     let factory = bots::MockedBotFactory::new()
-        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 0), bots::Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 0), bots::Command::Split);
+        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), Command::Split);
 
     let mut runner = RunnerContext::new(factory, 9, GameConfig::default());
 
@@ -194,9 +195,9 @@ async fn cloned_tasks_have_same_used_fuel() {
 #[test]
 fn create_runner_with_config() {
     let factory = bots::MockedBotFactory::new()
-        .mock(TaskId(0, 0), bots::Command::Split)
-        .mock(TaskId(1, 0), bots::Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 1), bots::Command::Move(1, Direction::Left));
+        .mock(TaskId(0, 0), Command::Split)
+        .mock(TaskId(1, 0), Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 1), Command::Move(1, Direction::Left));
 
     let config = GameConfig {
         board_size: BoardSize(10, 10),

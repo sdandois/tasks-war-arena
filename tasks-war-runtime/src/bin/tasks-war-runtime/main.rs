@@ -5,7 +5,7 @@ use std::io::Read;
 use std::{fs::File, path::PathBuf};
 use tasks_war_runtime::game_replay::GameReplay;
 use tasks_war_runtime::runtime::GameRunner;
-use tasks_war_runtime::{game_replay::GameMemento, runtime::bots::WasmBotFactory};
+use tasks_war_runtime::{game_memento::GameMemento, runtime::bots::WasmBotFactory};
 
 use clap::*;
 
@@ -56,7 +56,7 @@ fn execute_replay_command(replay_args: ReplayCommandArgs) -> anyhow::Result<()> 
 
     let mut game_replay = GameReplay::from(memento);
 
-    while let Some(()) = game_replay.advance() {
+    while let Some(()) = game_replay.advance_skipping_looks() {
         println!("{}", game_replay.current());
 
         println!("Press ENTER to continue...");

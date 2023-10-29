@@ -175,22 +175,20 @@ impl WasmRunner {
                 "",
                 "look",
                 look_type,
-                move |mut caller, _params, results| {
+                move |mut caller: Caller<'_, ModuleState>, _params, results| {
                     Box::new(async move {
                         let delta_x = _params[0].unwrap_i32();
                         let delta_y = _params[1].unwrap_i32();
+
+                        let command = Command::Look(delta_x as isize, delta_y as isize);
+                        let _ = caller.consume_fuel(command.extra_consumed_fuel());
 
                         let consumed_fuel =
                             caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
                         caller.data_mut().previous_fuel = caller.fuel_consumed().unwrap();
 
                         let s = caller.data_mut();
-                        s.tx_out
-                            .send((
-                                Command::Look(delta_x as isize, delta_y as isize),
-                                consumed_fuel as usize,
-                            ))
-                            .await?;
+                        s.tx_out.send((command, consumed_fuel as usize)).await?;
 
                         let look_result = s
                             .rx_in
@@ -227,16 +225,16 @@ impl WasmRunner {
                     Box::new(async move {
                         let delta = _params[0].unwrap_i32();
                         let dir: Direction = _params[1].unwrap_i32().try_into().unwrap();
+                        let command = Command::Move(delta as usize, dir);
 
+                        let _ = caller.consume_fuel(command.extra_consumed_fuel());
                         let consumed_fuel =
                             caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
                         caller.data_mut().previous_fuel = caller.fuel_consumed().unwrap();
 
                         let s = caller.data_mut();
 
-                        s.tx_out
-                            .send((Command::Move(delta as usize, dir), consumed_fuel as usize))
-                            .await?;
+                        s.tx_out.send((command, consumed_fuel as usize)).await?;
                         let _m = s
                             .rx_in
                             .recv()
@@ -257,15 +255,16 @@ impl WasmRunner {
         self.linker
             .func_new_async("", "split", split_type, |mut caller, _params, results| {
                 Box::new(async move {
+                    let command = Command::Split;
+                    let _ = caller.consume_fuel(command.extra_consumed_fuel());
+
                     let consumed_fuel =
                         caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
                     caller.data_mut().previous_fuel = caller.fuel_consumed().unwrap();
 
                     let s = caller.data_mut();
 
-                    s.tx_out
-                        .send((Command::Split, consumed_fuel as usize))
-                        .await?;
+                    s.tx_out.send((command, consumed_fuel as usize)).await?;
                     let _m = s
                         .rx_in
                         .recv()
