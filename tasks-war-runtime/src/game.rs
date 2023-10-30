@@ -42,6 +42,7 @@ pub struct Game {
     board: Board,
     player_points: Vec<usize>,
     config: GameConfig,
+    remaining_fruits: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -102,7 +103,7 @@ impl Game {
             let fruit = if fruit_random < 0.6 {
                 Fruit::Grape
             } else if fruit_random < 0.9 {
-                Fruit::Grape
+                Fruit::Banana
             } else {
                 Fruit::Strawberry
             };
@@ -170,8 +171,13 @@ impl Game {
             }
         }
 
+        let mut remaining_fruits = final_fruits.len();
         for f in &final_fruits {
-            *board.get_content_mut(f.pos) = BoardContent::Food(f.fruit);
+            if BoardContent::None == *board.get_content(f.pos) {
+                *board.get_content_mut(f.pos) = BoardContent::Food(f.fruit);
+            } else {
+                remaining_fruits -= 1;
+            }
         }
 
         Game {
@@ -180,6 +186,7 @@ impl Game {
             board: board,
             player_points: vec![0, 0],
             config: Default::default(),
+            remaining_fruits,
         }
     }
 
@@ -237,6 +244,7 @@ impl Game {
 
         if let BoardContent::Food(f) = new_pos_content {
             self.player_points[task_id.0] += f.points();
+            self.remaining_fruits -= 1;
         }
 
         if let BoardContent::Tasks(new_pos_tasks_ids) = &mut new_pos_content {
@@ -369,9 +377,14 @@ impl Game {
     }
 
     pub fn is_finished(&self) -> bool {
-        self.tasks
+        let all_tasks_are_dead = self
+            .tasks
             .iter()
-            .any(|t| t.iter().filter(|tt| !tt.is_dead).next().is_none())
+            .any(|t| t.iter().filter(|tt| !tt.is_dead).next().is_none());
+
+        let all_fruits_were_eaten = self.remaining_fruits == 0;
+
+        return all_tasks_are_dead || all_fruits_were_eaten;
     }
 
     pub fn kill(&mut self, tid: TaskId) {

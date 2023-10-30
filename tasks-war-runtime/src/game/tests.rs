@@ -506,3 +506,72 @@ fn get_config() {
 
     assert_eq!(*returned_config, config);
 }
+
+#[test]
+fn if_there_is_no_food_left_game_is_over() {
+    let tasks = vec![Task::new(0, (1, 0)), Task::new(1, (8, 8))];
+
+    let fruits = vec![
+        FruitPos {
+            fruit: Fruit::Banana,
+            pos: (2, 0),
+        },
+        FruitPos {
+            fruit: Fruit::Banana,
+            pos: (3, 0),
+        },
+    ];
+
+    let board_size = BoardSize(10, 10);
+
+    let mut game = Game::with_full_customization(Some(tasks), Some(fruits), Some(board_size));
+
+    assert!(!game.is_finished());
+
+    game.move_task(TaskId(0, 0), 1, Direction::Down);
+
+    assert!(game.points(0) > 0);
+    assert!(!game.is_finished());
+
+    game.move_task(TaskId(0, 0), 1, Direction::Down);
+
+    assert!(game.is_finished());
+}
+
+
+#[test]
+fn remaining_fruits_counts_double_fruits() {
+    let tasks = vec![Task::new(0, (1, 0)), Task::new(1, (8, 8))];
+
+    let fruits = vec![
+        FruitPos {
+            fruit: Fruit::Banana,
+            pos: (2, 0),
+        },
+        FruitPos {
+            fruit: Fruit::Banana,
+            pos: (3, 0),
+        },
+        FruitPos {
+            fruit: Fruit::Strawberry,
+            pos: (3, 0),
+        },
+    ];
+
+    let board_size = BoardSize(10, 10);
+
+    let mut game = Game::with_full_customization(Some(tasks), Some(fruits), Some(board_size));
+
+    assert!(!game.is_finished());
+
+    game.move_task(TaskId(0, 0), 1, Direction::Down);
+
+    assert!(game.points(0) > 0);
+    assert!(!game.is_finished());
+
+    assert_eq!(BoardContent::Food(Fruit::Banana),  *game.board.get_content((3,0)));
+
+    game.move_task(TaskId(0, 0), 1, Direction::Down);
+
+    assert!(game.is_finished());
+}
