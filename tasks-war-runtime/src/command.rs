@@ -26,9 +26,9 @@ impl Command {
 
     pub fn extra_consumed_fuel(&self) -> u64 {
         match self {
-            Command::Move(_, _) => 1024,
-            Command::Look(_, _) => 128,
-            Command::Split => 1,
+            Command::Move(_, _) => 2048,
+            Command::Look(_, _) => 256,
+            Command::Split => 32,
             Command::Pass => 0,
         }
     }

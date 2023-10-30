@@ -37,14 +37,28 @@ fn execute_run_command(run_args: RunCommandArgs) -> anyhow::Result<()> {
     let runner = GameRunner::with_config(factory, config);
 
     let _result = runner.run_game();
+    let memento = _result.dump();
 
     if let Some(replay_file) = run_args.replay_output {
         let f = File::create(replay_file)?;
 
-        let memento = _result.dump();
-
         serde_json::to_writer(f, &memento)?;
     };
+
+    if run_args.play_replay {
+        event!(Level::INFO, "Playing replay of game");
+        let mut game_replay = GameReplay::from(memento);
+
+        while let Some(entry) = game_replay.advance_skipping_looks() {
+            println!("{}", game_replay.current());
+
+            println!("{entry}");
+
+            println!("Press ENTER to continue...");
+            let buffer = &mut [0u8];
+            std::io::stdin().read_exact(buffer)?;
+        }
+    }
 
     Ok(())
 }
@@ -62,6 +76,13 @@ fn execute_replay_command(replay_args: ReplayCommandArgs) -> anyhow::Result<()> 
 
     if replay_args.show_all {
         println!("{}", game_replay.current());
+
+        if replay_args.interactive {
+            println!("Press ENTER to continue...");
+            let buffer = &mut [0u8];
+            std::io::stdin().read_exact(buffer)?;
+        }
+
         while let Some(entry) = game_replay.advance() {
             println!("{entry}");
 

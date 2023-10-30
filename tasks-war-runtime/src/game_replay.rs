@@ -75,8 +75,8 @@ mod tests {
             board_size: BoardSize(5, 5),
         });
 
-        game.accept(TaskId(0, 0), &Command::Move(1, Direction::Right));
-        game.accept(TaskId(1, 0), &Command::Move(1, Direction::Left));
+        game.accept(TaskId(0, 0), &Command::Move(1, Direction::Right), 1);
+        game.accept(TaskId(1, 0), &Command::Move(1, Direction::Left), 1);
 
         let memento = game.dump();
 
@@ -89,7 +89,7 @@ Player 0 tasks: A
 Player 1 tasks: A
 _____
 0____
-_G1__
+_B1__
 _____
 __G__
 ";
@@ -105,7 +105,7 @@ Player 0 tasks: A
 Player 1 tasks: A
 _____
 _0___
-_G1__
+_B1__
 _____
 __G__
 ";
@@ -115,7 +115,7 @@ __G__
         game_replay.advance();
 
         let exp_str = r"Player 0 points: 0
-Player 1 points: 16
+Player 1 points: 32
 
 Player 0 tasks: A
 Player 1 tasks: A
@@ -136,10 +136,10 @@ __G__
             board_size: BoardSize(5, 5),
         });
 
-        game.accept(TaskId(0, 0), &Command::Move(1, Direction::Right));
-        game.accept(TaskId(0, 0), &Command::Look(1, 1));
-        game.accept(TaskId(0, 0), &Command::Look(1, 1));
-        game.accept(TaskId(1, 0), &Command::Move(1, Direction::Left));
+        game.accept(TaskId(0, 0), &Command::Move(1, Direction::Right), 1);
+        game.accept(TaskId(0, 0), &Command::Look(1, 1), 2);
+        game.accept(TaskId(0, 0), &Command::Look(1, 1), 3);
+        game.accept(TaskId(1, 0), &Command::Move(1, Direction::Left), 4);
 
         let memento = game.dump();
 
@@ -152,7 +152,7 @@ Player 0 tasks: A
 Player 1 tasks: A
 _____
 0____
-_G1__
+_B1__
 _____
 __G__
 ";
@@ -168,7 +168,7 @@ Player 0 tasks: A
 Player 1 tasks: A
 _____
 _0___
-_G1__
+_B1__
 _____
 __G__
 ";
@@ -178,7 +178,7 @@ __G__
         game_replay.advance_skipping_looks();
 
         let exp_str = r"Player 0 points: 0
-Player 1 points: 16
+Player 1 points: 32
 
 Player 0 tasks: A
 Player 1 tasks: A

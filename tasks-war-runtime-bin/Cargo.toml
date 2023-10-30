@@ -7,7 +7,7 @@ edition = "2021"
 
 
 [[bin]]
-name = "tasks-war-runtime"
+name = "tasks-war"
 path = "src/main.rs"
 
 

@@ -27,8 +27,8 @@ impl GameWithHistory {
         self.game.points(player)
     }
 
-    pub fn accept(&mut self, task_id: TaskId, command: &Command) -> CommandResponse {
-        self.history.push(HistoryEntry::new(task_id, command.clone()));
+    pub fn accept(&mut self, task_id: TaskId, command: &Command, used_fuel: isize) -> CommandResponse {
+        self.history.push(HistoryEntry::new(task_id, command.clone(), used_fuel));
         match command {
             Command::Move(random_delta, random_dir) => {
                 self.game.move_task(task_id, *random_delta, *random_dir);

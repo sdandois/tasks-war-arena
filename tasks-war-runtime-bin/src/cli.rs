@@ -34,6 +34,10 @@ pub struct RunCommandArgs {
     /// A seed for the pseudo-random number generator.
     #[arg(long = "seed")]
     pub seed: Option<u64>,
+
+    /// Play replay after game execution ends.
+    #[arg(short = 'r', long = "play-replay")]
+    pub play_replay: bool,
 }
 
 #[derive(Args, Debug)]

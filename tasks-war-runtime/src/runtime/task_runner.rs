@@ -82,13 +82,15 @@ impl<B: Bot> TaskRunner<B> {
         let (command, consumed_fuel) = self.bot.poll().await?;
         self.borrow_context().used_fuel += consumed_fuel as isize;
 
+        let used_fuel = self.borrow_context().used_fuel;
+
         let task_id = {
             let task_context = self.borrow_context();
 
             task_context.task_id
         };
 
-        let res = self.borrow_game().accept(task_id, &command);
+        let res = self.borrow_game().accept(task_id, &command, used_fuel);
 
         self.bot_update(&res).await;
 
