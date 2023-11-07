@@ -1,3 +1,5 @@
+use std::ffi::{c_char, CString};
+
 mod external;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -64,6 +66,13 @@ pub fn look(vertical_delta: i32, horizontal_delta: i32) -> LookResult {
 pub fn split() {
     unsafe {
         external::split();
+    }
+}
+
+pub fn debug(debug_str: &str) {
+    unsafe {
+        let debug_string = CString::new(debug_str).unwrap();
+        external::debug(debug_string.as_ptr() as *const c_char);
     }
 }
 

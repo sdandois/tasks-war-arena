@@ -1,4 +1,5 @@
 use std::{
+    ffi::CString,
     fs::{DirBuilder, File},
     io::Write,
     path::{Path, PathBuf},
@@ -12,6 +13,8 @@ use wasmtime_wasi::{sync::WasiCtxBuilder, WasiCtx};
 use tokio::sync::mpsc;
 
 use super::*;
+
+const MAX_DEBUG_MESSAGE_SIZE: usize = 256;
 
 pub struct WasmBot {
     tx_in: Option<mpsc::Sender<Option<LookResult>>>,
@@ -278,6 +281,45 @@ impl WasmRunner {
             .unwrap();
     }
 
+    fn link_debug_fn(&mut self) {
+        let debug_type = wasmtime::FuncType::new([ValType::I32], Some(wasmtime::ValType::I32));
+
+        self.linker
+            .func_new_async("", "debug", debug_type, |mut caller, _params, results| {
+                Box::new(async move {
+                    let pointer = _params[0].unwrap_i32() as usize;
+
+                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+
+                    let mem_data = memory.data(caller.as_context());
+
+                    let find_0 = mem_data[pointer..]
+                        .iter()
+                        .take(MAX_DEBUG_MESSAGE_SIZE + 1)
+                        .position(|v| *v == 0)
+                        .unwrap_or(MAX_DEBUG_MESSAGE_SIZE);
+
+                    let mut v: Vec<u8> = mem_data[pointer..(pointer + find_0 + 1)]
+                        .iter()
+                        .map(|v| v.clone())
+                        .collect();
+
+                    *v.last_mut().unwrap() = 0;
+                    let c_str = CString::from_vec_with_nul(v)
+                        .unwrap()
+                        .into_string()
+                        .unwrap();
+
+                    event!(Level::INFO, "{}", c_str);
+
+                    results[0] = Val::I32(0 as i32);
+
+                    Ok(())
+                })
+            })
+            .unwrap();
+    }
+
     async fn link_module(&mut self) {
         event!(Level::INFO, "Linking our module...");
         self.linker
@@ -291,6 +333,7 @@ impl WasmRunner {
         self.link_look_fn();
         self.link_move_task_fn();
         self.link_split_fn();
+        self.link_debug_fn();
 
         self.store.add_fuel(u64::MAX).unwrap();
         self.link_module().await;
