@@ -350,6 +350,44 @@ fn tasks_collision_multiple_tasks() {
 }
 
 #[test]
+fn many_to_many_collision_same_team() {
+    let task00 = Task::with_weight(0, (0, 0), 16);
+    let task01 = Task::with_weight(0, (0, 0), 16);
+    let task02 = Task::with_weight(0, (0, 1), 16);
+    let task03 = Task::with_weight(0, (0, 1), 16);
+
+    let mut game = Game::with_full_customization(
+        Some(vec![task00, task01, task02, task03]),
+        Some(vec![]),
+        Some(BoardSize(5, 5)),
+    );
+
+    game.move_task(TaskId(0, 1), 1, Direction::Right);
+
+    if let BoardContent::Tasks(tts) = &game.board[0][0] {
+        assert_eq!(1, tts.len());
+        assert!(tts.contains(&TaskId(0, 0)));
+        assert!(!tts.contains(&TaskId(0, 1)));
+    } else {
+        panic!("Must be BoardContent::Tasks")
+    }
+
+    if let BoardContent::Tasks(tts) = &game.board[0][1] {
+        assert_eq!(3, tts.len());
+        assert!(tts.contains(&TaskId(0, 1)));
+        assert!(tts.contains(&TaskId(0, 2)));
+        assert!(tts.contains(&TaskId(0, 3)));
+    } else {
+        panic!("Must be BoardContent::Tasks")
+    }
+
+    assert!(!game.get_task(TaskId(0, 0)).is_dead);
+    assert!(!game.get_task(TaskId(0, 1)).is_dead);
+    assert!(!game.get_task(TaskId(0, 2)).is_dead);
+    assert!(!game.get_task(TaskId(0, 3)).is_dead);
+}
+
+#[test]
 fn split() {
     let task0 = Task::with_weight(0, (0, 0), 32);
     let task1 = Task::with_weight(0, (1, 1), 32);

@@ -26,7 +26,7 @@ pub enum Direction {
     Right,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum LookResult {
     Null,     // 0
     None,     // 1
@@ -260,46 +260,44 @@ impl Game {
 
                 new_pos_tasks_ids.push(task_id);
                 *self.board.get_content_mut(new_pos) = new_pos_content;
-
-                return new_pos;
-            }
-
-            let task = self.get_task(task_id);
-
-            let other_weights: usize = new_pos_tasks_ids
-                .iter()
-                .map(|id| self.get_task(*id).weight)
-                .sum();
-
-            if task.weight > other_weights {
-                // (task_id, new_pos_tasks_ids)
-                for tid in new_pos_tasks_ids {
-                    self.get_task_mut(*tid).is_dead = true;
-                }
-                self.get_task_mut(task_id).pos = new_pos;
-                *self.board.get_content_mut(new_pos) = BoardContent::Tasks(vec![task_id]);
             } else {
-                self.get_task_mut(task_id).is_dead = true;
-                *self.board.get_content_mut(new_pos) = new_pos_content;
+                let task = self.get_task(task_id);
+
+                let other_weights: usize = new_pos_tasks_ids
+                    .iter()
+                    .map(|id| self.get_task(*id).weight)
+                    .sum();
+
+                if task.weight > other_weights {
+                    // (task_id, new_pos_tasks_ids)
+                    for tid in new_pos_tasks_ids {
+                        self.get_task_mut(*tid).is_dead = true;
+                    }
+                    self.get_task_mut(task_id).pos = new_pos;
+                    *self.board.get_content_mut(new_pos) = BoardContent::Tasks(vec![task_id]);
+                } else {
+                    self.get_task_mut(task_id).is_dead = true;
+                    *self.board.get_content_mut(new_pos) = new_pos_content;
+                }
             }
         } else {
-            if let BoardContent::Tasks(tts) = &mut old_pos_content {
-                match tts.len() {
-                    1 => {}
-                    _ => {
-                        let index = tts
-                            .iter()
-                            .position(|task_id_wanted| *task_id_wanted == task_id)
-                            .unwrap();
-                        tts.swap_remove(index);
-                        *self.board.get_content_mut(old_pos) = old_pos_content;
-                    }
-                }
-            }
             *self.board.get_content_mut(new_pos) = BoardContent::Tasks(vec![task_id]);
             self.get_task_mut(task_id).pos = new_pos;
         }
 
+        if let BoardContent::Tasks(tts) = &mut old_pos_content {
+            match tts.len() {
+                1 => {}
+                _ => {
+                    let index = tts
+                        .iter()
+                        .position(|task_id_wanted| *task_id_wanted == task_id)
+                        .unwrap();
+                    tts.swap_remove(index);
+                    *self.board.get_content_mut(old_pos) = old_pos_content;
+                }
+            }
+        }
         return new_pos;
     }
 

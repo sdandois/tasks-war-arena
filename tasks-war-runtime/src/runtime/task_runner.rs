@@ -6,8 +6,9 @@ use tokio::sync::mpsc;
 
 use tracing::{event, Level};
 
-use crate::game::TaskId;
+use crate::command::Command;
 use crate::command::CommandResponse;
+use crate::game::TaskId;
 use crate::game_with_history::GameWithHistory;
 
 use super::{TaskContext, WrappedGame};
@@ -56,7 +57,8 @@ impl<B: Bot> TaskRunner<B> {
     }
     pub async fn run(&mut self) {
         while let Some(_content) = self.rx.recv().await {
-            event!(Level::INFO,
+            event!(
+                Level::INFO,
                 "{:?}: at {:?} with {} of fuel",
                 self.task_id,
                 self.borrow_game().get_task(self.task_id).pos,
@@ -67,15 +69,23 @@ impl<B: Bot> TaskRunner<B> {
 
             match task_response {
                 Some(resp) => self.tx.send(resp).await.unwrap(),
-                None => {  
-                    event!(Level::INFO,"{:?} no more to poll.", self.task_id);
+                None => {
+                    event!(Level::INFO, "{:?} no more to poll.", self.task_id);
                     break;
                 }
             }
         }
-        event!(Level::INFO,"{:?} channel closed, awaiting bot...", self.task_id);
+        event!(
+            Level::INFO,
+            "{:?} channel closed, awaiting bot...",
+            self.task_id
+        );
         self.bot.wait().await;
-        event!(Level::INFO,"{:?} channel closed, awaiting bot... Done.", self.task_id);
+        event!(
+            Level::INFO,
+            "{:?} channel closed, awaiting bot... Done.",
+            self.task_id
+        );
     }
 
     async fn do_play(&mut self) -> Option<TaskResponse> {
@@ -99,12 +109,19 @@ impl<B: Bot> TaskRunner<B> {
             _ => TaskResponse::None,
         };
 
-        event!(Level::INFO,
+        event!(
+            Level::INFO,
             "{:?}: after {:?} at {:?}",
             self.task_id,
             command,
             self.borrow_game().get_task(self.task_id).pos
         );
+
+        if let CommandResponse::NewTask(tid) = res {
+            event!(Level::INFO, "New task {:?} will spawn", tid);
+        } else if let Command::Split = command {
+            event!(Level::INFO, "Spawn error",);
+        };
 
         Some(task_response)
     }

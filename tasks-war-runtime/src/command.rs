@@ -10,6 +10,7 @@ pub enum Command {
     Pass,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum CommandResponse {
     None,
     Look(LookResult),

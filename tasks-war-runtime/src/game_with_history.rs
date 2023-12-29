@@ -28,16 +28,15 @@ impl GameWithHistory {
     }
 
     pub fn accept(&mut self, task_id: TaskId, command: &Command, used_fuel: isize) -> CommandResponse {
-        self.history.push(HistoryEntry::new(task_id, command.clone(), used_fuel));
-        match command {
+        let response = match command {
             Command::Move(random_delta, random_dir) => {
                 self.game.move_task(task_id, *random_delta, *random_dir);
-
+                
                 CommandResponse::None
             }
             Command::Split => {
                 let res = self.game.split(task_id);
-
+                
                 match res {
                     Ok(tid) => CommandResponse::NewTask(tid),
                     _ => CommandResponse::None,
@@ -45,11 +44,14 @@ impl GameWithHistory {
             }
             Command::Look(delta_x, delta_y) => {
                 let res = self.game.look(task_id, *delta_x, *delta_y);
-
+                
                 CommandResponse::Look(res)
             }
             Command::Pass => CommandResponse::None,
-        }
+        };
+        self.history.push(HistoryEntry::new(task_id, command.clone(), used_fuel, response.clone()));
+
+        response
     }
 
     pub fn get_all_task_ids(&self) -> Vec<TaskId> {
