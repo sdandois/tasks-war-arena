@@ -119,6 +119,7 @@ impl WasmBotFactory {
 struct WasmRunner {
     module: Module,
     task_id: TaskId,
+    task_weight: i32,
     linker: Linker<ModuleState>,
     store: Store<ModuleState>,
 }
@@ -128,6 +129,7 @@ impl WasmRunner {
         engine: Engine,
         module: Module,
         task_id: TaskId,
+        task_weight: i32,
         tx_out: mpsc::Sender<(Command, usize)>,
         rx_in: mpsc::Receiver<Option<LookResult>>,
     ) -> Self {
@@ -149,6 +151,7 @@ impl WasmRunner {
             linker,
             store,
             task_id,
+            task_weight,
             module,
         }
     }
@@ -281,6 +284,22 @@ impl WasmRunner {
             .unwrap();
     }
 
+    fn link_weight(&mut self) {
+        let get_weight_type = wasmtime::FuncType::new([], Some(wasmtime::ValType::I32));
+
+        let weight = self.task_weight;
+
+        self.linker
+            .func_new_async("", "get_task_weight", get_weight_type, move |mut _caller, _params, results| {
+                Box::new(async move {
+                    results[0] = Val::I32(weight);
+
+                    Ok(())
+                })
+            })
+            .unwrap();
+    }
+
     fn link_debug_fn(&mut self) {
         let debug_type = wasmtime::FuncType::new([ValType::I32], Some(wasmtime::ValType::I32));
 
@@ -334,8 +353,9 @@ impl WasmRunner {
         self.link_move_task_fn();
         self.link_split_fn();
         self.link_debug_fn();
+        self.link_weight();
 
-        self.store.add_fuel(u64::MAX).unwrap();
+        self.store.add_fuel(u64::MAX).unwrap(); // TODO: Add correct amount of fuel.
         self.link_module().await;
     }
 
@@ -384,12 +404,17 @@ impl WasmRunner {
 }
 
 impl WasmBot {
-    async fn spawn(engine: Engine, module: Module, task_id: TaskId) -> Result<WasmBot> {
+    async fn spawn(
+        engine: Engine,
+        module: Module,
+        task_id: TaskId,
+        task_weight: i32,
+    ) -> Result<WasmBot> {
         let (tx_in, rx_in) = tokio::sync::mpsc::channel::<Option<LookResult>>(2);
         let (tx_out, rx_out) = tokio::sync::mpsc::channel::<(Command, usize)>(2);
 
         let handle = tokio::spawn(async move {
-            let mut runner = WasmRunner::new(engine, module, task_id, tx_out, rx_in);
+            let mut runner = WasmRunner::new(engine, module, task_id, task_weight, tx_out, rx_in);
 
             runner.prepare().await;
             let res: Result<_> = runner.run_main_fn().await;
@@ -443,13 +468,13 @@ impl Bot for WasmBot {
 impl BotFactory for WasmBotFactory {
     type B = WasmBot;
 
-    async fn create_bot(&self, task_id: TaskId) -> Self::B {
+    async fn create_bot(&self, task_id: TaskId, task_weight: i32) -> Self::B {
         let module = match task_id {
             TaskId(0, _) => self.module_player0.clone(),
             TaskId(1, _) => self.module_player1.clone(),
             _ => panic!("invalid player"),
         };
-        WasmBot::spawn(self.engine.clone(), module, task_id)
+        WasmBot::spawn(self.engine.clone(), module, task_id, task_weight)
             .await
             .unwrap()
     }

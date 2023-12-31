@@ -187,7 +187,9 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
         let game_copy = self.game.clone();
         let task_context = Arc::new(Mutex::new(TaskContext { used_fuel, task_id }));
         let task_context_copy = task_context.clone();
-        let bot = self.bot_factory.create_bot(task_id).await;
+
+        let task_weight = game_copy.lock().unwrap().get_task(task_id).weight as i32;
+        let bot = self.bot_factory.create_bot(task_id, task_weight).await;
 
         let handle = tokio::spawn(async move {
             let mut task_runner =

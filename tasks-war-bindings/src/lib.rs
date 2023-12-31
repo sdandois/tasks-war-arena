@@ -76,6 +76,10 @@ pub fn debug(debug_str: &str) {
     }
 }
 
+pub fn get_task_weight() -> i32 {
+    unsafe { external::get_task_weight() }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

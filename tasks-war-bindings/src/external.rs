@@ -7,6 +7,7 @@ extern "C" {
     pub fn look(delta_x: i32, delta_y: i32) -> i32;
     pub fn split() -> i32;
     pub fn debug(debug_str: *const c_char) -> i32;
+    pub fn get_task_weight() -> i32;
 }
 
 #[cfg(test)]
@@ -27,4 +28,9 @@ pub unsafe fn split() -> i32 {
 #[cfg(test)]
 pub unsafe fn debug(debug_str: *const c_char) -> i32 {
     return 0;
+}
+
+#[cfg(test)]
+pub unsafe fn get_task_weight() -> i32 {
+    64
 }

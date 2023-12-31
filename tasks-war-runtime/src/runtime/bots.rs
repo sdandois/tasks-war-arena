@@ -102,7 +102,7 @@ impl Bot for MockBot {
 pub trait BotFactory: Clone {
     type B: Bot;
 
-    async fn create_bot(&self, task_id: TaskId) -> Self::B;
+    async fn create_bot(&self, task_id: TaskId, task_weight: i32) -> Self::B;
 }
 
 type CommandClosure = dyn Fn(Option<LookResult>) -> Command + Send + Sync;
@@ -146,7 +146,7 @@ impl MockedBotFactory {
 
 impl BotFactory for MockedBotFactory {
     type B = MockBot;
-    async fn create_bot(&self, task_id: TaskId) -> MockBot {
+    async fn create_bot(&self, task_id: TaskId, task_weight: i32) -> MockBot {
         let commands: Option<&VecDeque<Arc<CommandClosure>>> = self.commands.get(&task_id);
 
         let commands: VecDeque<Arc<CommandClosure>> = commands.cloned().unwrap_or_default();
@@ -170,7 +170,7 @@ impl RandomBotFactory {
 #[async_trait]
 impl BotFactory for RandomBotFactory {
     type B = RandomBot;
-    async fn create_bot(&self, tid: TaskId) -> RandomBot {
+    async fn create_bot(&self, tid: TaskId, _task_weight: i32) -> RandomBot {
         let seed = (tid.0 + 2 * tid.1) as u64;
 
         RandomBot::new(seed)

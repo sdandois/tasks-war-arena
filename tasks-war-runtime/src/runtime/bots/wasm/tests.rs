@@ -10,7 +10,7 @@ async fn look_once() {
         WasmBotFactory::same_module("wasm_modules/look-once.wasm")
     });
 
-    let mut bot = factory.create_bot(TaskId(0, 0)).await;
+    let mut bot = factory.create_bot(TaskId(0, 0), 64).await;
 
     let p = bot.poll().await.unwrap().0;
     println!("{:?}", (std::time::Instant::now() - before).as_millis());
@@ -25,7 +25,7 @@ async fn move_down() {
         WasmBotFactory::same_module("wasm_modules/move-down.wasm")
     });
 
-    let mut bot = factory.create_bot(TaskId(0, 0)).await;
+    let mut bot = factory.create_bot(TaskId(0, 0), 64).await;
 
     let p = bot.poll().await.unwrap().0;
 
@@ -38,7 +38,7 @@ async fn move_left() {
         WasmBotFactory::same_module("wasm_modules/move-left.wasm")
     });
 
-    let mut bot = factory.create_bot(TaskId(0, 0)).await;
+    let mut bot = factory.create_bot(TaskId(0, 0), 64).await;
 
     let p = bot.poll().await.unwrap().0;
 
@@ -51,7 +51,7 @@ async fn split() {
         WasmBotFactory::same_module("wasm_modules/split-once.wasm")
     });
 
-    let mut bot = factory.create_bot(TaskId(0, 0)).await;
+    let mut bot = factory.create_bot(TaskId(0, 0), 64).await;
 
     let p = bot.poll().await.unwrap().0;
 
@@ -68,8 +68,8 @@ async fn different_modules_for_players() {
             )
         });
 
-    let mut bot0 = factory.create_bot(TaskId(0, 0)).await;
-    let mut bot1 = factory.create_bot(TaskId(1, 0)).await;
+    let mut bot0 = factory.create_bot(TaskId(0, 0), 64).await;
+    let mut bot1 = factory.create_bot(TaskId(1, 0), 64).await;
 
     let (c0, _) = bot0.poll().await.unwrap();
     let (c1, _) = bot1.poll().await.unwrap();
@@ -84,7 +84,7 @@ async fn action_depends_on_look_result() {
         WasmBotFactory::same_module("wasm_modules/look-if-empty.wasm")
     });
 
-    let mut bot = factory.create_bot(TaskId(0, 0)).await;
+    let mut bot = factory.create_bot(TaskId(0, 0), 64).await;
 
     let (c, _) = bot.poll().await.unwrap();
 
