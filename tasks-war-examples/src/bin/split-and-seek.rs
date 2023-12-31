@@ -1,17 +1,4 @@
-use std::cmp::min;
-
 use tasks_war_bindings::*;
-
-static mut WEIGHT: i32 = 0;
-
-#[inline]
-fn get_weight() -> i32 {
-    unsafe { WEIGHT }
-}
-
-fn max_leap() -> i32 {
-    return 64 / get_weight();
-}
 
 fn seek_food() -> (i32, i32) {
     let mut distance = 1;
@@ -82,35 +69,31 @@ fn long_move(target: (i32, i32)) {
     let mut delta_y = target.1;
 
     while delta_x != 0 || delta_y != 0 {
-        let leap = min(delta_x.abs(), max_leap());
-
         if delta_x > 0 {
-            move_task(leap as u32, Direction::Down);
-            delta_x -= leap;
+            move_task(Direction::Down);
+            delta_x -= 1;
         } else if delta_x < 0 {
-            let leap = min(delta_x.abs(), max_leap());
-            move_task(leap as u32, Direction::Up);
-            delta_x += leap;
+            move_task(Direction::Up);
+            delta_x += 1;
         } else if delta_y > 0 {
-            let leap = min(delta_y.abs(), max_leap());
-            move_task(leap as u32, Direction::Right);
-            delta_y -= leap;
+            move_task(Direction::Right);
+            delta_y -= 1;
         } else if delta_y < 0 {
-            let leap = min(delta_y.abs(), max_leap());
-            move_task(leap as u32, Direction::Left);
-            delta_y += leap;
+            move_task(Direction::Left);
+            delta_y += 1;
         }
     }
 }
 
 fn main() {
-    unsafe {
-        WEIGHT = get_task_weight();
-    }
-    
-    debug(&format!("Current weight is from inside wasm: {}", get_weight()));
+    debug(&format!(
+        "Current weight is from inside wasm: {}",
+        get_task_weight()
+    ));
 
-    split();
+    if get_task_weight() > 1 {
+        split();
+    }
 
     loop {
         let target = seek_food();

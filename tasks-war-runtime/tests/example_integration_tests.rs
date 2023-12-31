@@ -14,6 +14,6 @@ fn game_test() {
     let mut g = tasks_war_runtime::game::Game::from_config(GameConfig::default());
 
     g.look(tasks_war_runtime::game::TaskId(0, 0), 1, 1);
-    g.move_task(TaskId(0, 0), 1, tasks_war_runtime::game::Direction::Down);
+    g.move_task(TaskId(0, 0), tasks_war_runtime::game::Direction::Down);
     g.split(TaskId(0, 0)).unwrap();
 }

@@ -70,16 +70,16 @@ fn long_move(target: (i32, i32)) {
 
     while delta_x != 0 || delta_y != 0 {
         if delta_x > 0 {
-            move_task(1, Direction::Down);
+            move_task( Direction::Down);
             delta_x -= 1;
         } else if delta_x < 0 {
-            move_task(1, Direction::Up);
+            move_task( Direction::Up);
             delta_x += 1;
         } else if delta_y > 0 {
-            move_task(1, Direction::Right);
+            move_task( Direction::Right);
             delta_y -= 1;
         } else if delta_y < 0 {
-            move_task(1, Direction::Left);
+            move_task( Direction::Left);
             delta_y += 1;
         }
     }

@@ -29,8 +29,8 @@ impl GameWithHistory {
 
     pub fn accept(&mut self, task_id: TaskId, command: &Command, used_fuel: isize) -> CommandResponse {
         let response = match command {
-            Command::Move(random_delta, random_dir) => {
-                self.game.move_task(task_id, *random_delta, *random_dir);
+            Command::Move( random_dir) => {
+                self.game.move_task(task_id,  *random_dir);
                 
                 CommandResponse::None
             }

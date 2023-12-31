@@ -8,7 +8,6 @@ use std::{
 use tracing::{event, Level};
 
 use wasmtime::*;
-use wasmtime_wasi::{sync::WasiCtxBuilder, WasiCtx};
 
 use tokio::sync::mpsc;
 
@@ -23,7 +22,6 @@ pub struct WasmBot {
 }
 
 struct ModuleState {
-    wasi: WasiCtx,
     rx_in: mpsc::Receiver<Option<LookResult>>,
     tx_out: mpsc::Sender<(Command, usize)>,
     previous_fuel: u64,
@@ -135,12 +133,9 @@ impl WasmRunner {
     ) -> Self {
         let linker: Linker<ModuleState> = Linker::new(&engine);
 
-        let wasi = Self::create_wasi_ctx(task_id);
-
         let store = Store::new(
             &engine,
             ModuleState {
-                wasi,
                 rx_in,
                 tx_out,
                 previous_fuel: 0,
@@ -154,21 +149,6 @@ impl WasmRunner {
             task_weight,
             module,
         }
-    }
-
-    fn create_wasi_ctx(task_id: TaskId) -> WasiCtx {
-        WasiCtxBuilder::new()
-            .inherit_stdio()
-            .env("PLAYER", format!("{}", task_id.0).as_str())
-            .unwrap()
-            .env("SEQUENCE", format!("{}", task_id.1).as_str())
-            .unwrap()
-            .build()
-    }
-
-    fn link_wasi(&mut self) {
-        wasmtime_wasi::add_to_linker(&mut self.linker, |state: &mut ModuleState| &mut state.wasi)
-            .unwrap();
     }
 
     fn link_look_fn(&mut self) {
@@ -211,29 +191,24 @@ impl WasmRunner {
             .unwrap();
     }
 
-    /// Move directions:
-    /// Right = 1,
-    /// Down = 2,
-    /// Left = 3,
-    /// Up = 4.
     fn link_move_task_fn(&mut self) {
-        let move_task_type = wasmtime::FuncType::new(
-            [wasmtime::ValType::I32, wasmtime::ValType::I32],
-            Some(wasmtime::ValType::I32),
-        );
+        let move_task_type =
+            wasmtime::FuncType::new([wasmtime::ValType::I32], Some(wasmtime::ValType::I32));
 
+        let task_weight = self.task_weight;
         self.linker
             .func_new_async(
                 "",
                 "move_task",
                 move_task_type,
-                |mut caller, _params, results| {
+                move |mut caller, _params, results| {
                     Box::new(async move {
-                        let delta = _params[0].unwrap_i32();
-                        let dir: Direction = _params[1].unwrap_i32().try_into().unwrap();
-                        let command = Command::Move(delta as usize, dir);
+                        let dir: Direction = _params[0].unwrap_i32().try_into().unwrap();
+                        let command = Command::Move(dir);
 
-                        let _ = caller.consume_fuel(command.extra_consumed_fuel());
+                        let fuel_delta = command.extra_consumed_fuel() * task_weight as u64;
+
+                        let _ = caller.consume_fuel(fuel_delta);
                         let consumed_fuel =
                             caller.fuel_consumed().unwrap() - caller.data().previous_fuel;
                         caller.data_mut().previous_fuel = caller.fuel_consumed().unwrap();
@@ -290,52 +265,63 @@ impl WasmRunner {
         let weight = self.task_weight;
 
         self.linker
-            .func_new_async("", "get_task_weight", get_weight_type, move |mut _caller, _params, results| {
-                Box::new(async move {
-                    results[0] = Val::I32(weight);
+            .func_new_async(
+                "",
+                "get_task_weight",
+                get_weight_type,
+                move |mut _caller, _params, results| {
+                    Box::new(async move {
+                        results[0] = Val::I32(weight);
 
-                    Ok(())
-                })
-            })
+                        Ok(())
+                    })
+                },
+            )
             .unwrap();
     }
 
     fn link_debug_fn(&mut self) {
         let debug_type = wasmtime::FuncType::new([ValType::I32], Some(wasmtime::ValType::I32));
 
+        let task_id = self.task_id;
         self.linker
-            .func_new_async("", "debug", debug_type, |mut caller, _params, results| {
-                Box::new(async move {
-                    let pointer = _params[0].unwrap_i32() as usize;
+            .func_new_async(
+                "",
+                "debug",
+                debug_type,
+                move |mut caller, _params, results| {
+                    Box::new(async move {
+                        let pointer = _params[0].unwrap_i32() as usize;
 
-                    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+                        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
 
-                    let mem_data = memory.data(caller.as_context());
+                        let mem_data = memory.data(caller.as_context());
 
-                    let find_0 = mem_data[pointer..]
-                        .iter()
-                        .take(MAX_DEBUG_MESSAGE_SIZE + 1)
-                        .position(|v| *v == 0)
-                        .unwrap_or(MAX_DEBUG_MESSAGE_SIZE);
+                        let find_0 = mem_data[pointer..]
+                            .iter()
+                            .take(MAX_DEBUG_MESSAGE_SIZE + 1)
+                            .position(|v| *v == 0)
+                            .unwrap_or(MAX_DEBUG_MESSAGE_SIZE);
 
-                    let mut v: Vec<u8> = mem_data[pointer..(pointer + find_0 + 1)]
-                        .iter()
-                        .map(|v| v.clone())
-                        .collect();
+                        let mut v: Vec<u8> = mem_data[pointer..(pointer + find_0 + 1)]
+                            .iter()
+                            .map(|v| v.clone())
+                            .collect();
 
-                    *v.last_mut().unwrap() = 0;
-                    let c_str = CString::from_vec_with_nul(v)
-                        .unwrap()
-                        .into_string()
-                        .unwrap();
+                        *v.last_mut().unwrap() = 0;
+                        let c_str = CString::from_vec_with_nul(v)
+                            .unwrap()
+                            .into_string()
+                            .unwrap();
 
-                    event!(Level::INFO, "{}", c_str);
+                        event!(Level::INFO, "{:?}: {}", task_id, c_str);
 
-                    results[0] = Val::I32(0 as i32);
+                        results[0] = Val::I32(0 as i32);
 
-                    Ok(())
-                })
-            })
+                        Ok(())
+                    })
+                },
+            )
             .unwrap();
     }
 
@@ -348,7 +334,6 @@ impl WasmRunner {
     }
 
     async fn prepare(&mut self) {
-        self.link_wasi();
         self.link_look_fn();
         self.link_move_task_fn();
         self.link_split_fn();

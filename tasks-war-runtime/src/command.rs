@@ -4,7 +4,7 @@ use crate::game::*;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Command {
-    Move(usize, Direction),
+    Move(Direction),
     Look(isize, isize),
     Split,
     Pass,
@@ -27,7 +27,7 @@ impl Command {
 
     pub fn extra_consumed_fuel(&self) -> u64 {
         match self {
-            Command::Move(_, _) => 2048,
+            Command::Move(_) => 2048,
             Command::Look(_, _) => 256,
             Command::Split => 32,
             Command::Pass => 0,

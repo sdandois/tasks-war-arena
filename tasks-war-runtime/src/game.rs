@@ -198,19 +198,12 @@ impl Game {
         &self.config
     }
 
-    fn calculate_new_pos(
-        &self,
-        task_id: TaskId,
-        mut delta: usize,
-        dir: Direction,
-    ) -> (Position, Position) {
+    fn calculate_new_pos(&self, task_id: TaskId, dir: Direction) -> (Position, Position) {
         let task: &Task = self.get_task(task_id);
 
-        if delta > task.move_distance() {
-            delta = task.move_distance()
-        }
-
         let (old_x, old_y) = task.pos;
+
+        let delta = 1;
 
         let new_pos = match dir {
             Direction::Down => (
@@ -234,10 +227,10 @@ impl Game {
         (task.pos, new_pos)
     }
 
-    pub fn move_task(&mut self, task_id: TaskId, delta: usize, dir: Direction) -> Position {
+    pub fn move_task(&mut self, task_id: TaskId, dir: Direction) -> Position {
         debug_assert!(!self.get_task(task_id).is_dead);
 
-        let (old_pos, new_pos) = self.calculate_new_pos(task_id, delta, dir);
+        let (old_pos, new_pos) = self.calculate_new_pos(task_id, dir);
 
         let mut old_pos_content = std::mem::take(self.board.get_content_mut(old_pos));
         let mut new_pos_content = std::mem::take(self.board.get_content_mut(new_pos));

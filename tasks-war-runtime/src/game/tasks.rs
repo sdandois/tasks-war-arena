@@ -34,9 +34,6 @@ impl Task {
     pub fn look_distance(&self) -> usize {
         self.weight
     }
-    pub fn move_distance(&self) -> usize {
-        64 / self.weight
-    }
 
     pub fn split(&mut self) -> Task {
         self.weight = self.weight / 2;

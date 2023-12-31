@@ -50,9 +50,9 @@ impl From<i32> for LookResult {
     }
 }
 
-pub fn move_task(delta: u32, dir: Direction) {
+pub fn move_task(dir: Direction) {
     unsafe {
-        external::move_task(delta as i32, dir.into());
+        external::move_task(dir.into());
     }
 }
 
@@ -77,7 +77,15 @@ pub fn debug(debug_str: &str) {
 }
 
 pub fn get_task_weight() -> i32 {
-    unsafe { external::get_task_weight() }
+    static mut WEIGHT: i32 = -1;
+
+    unsafe {
+        if WEIGHT == -1 {
+            WEIGHT = external::get_task_weight()
+        }
+
+        WEIGHT
+    }
 }
 
 #[cfg(test)]
@@ -87,8 +95,8 @@ mod tests {
     #[test]
     fn call_move_unsafe() {
         unsafe {
-            let result = external::move_task(2, 3);
-            assert_eq!(result, 20003);
+            let result = external::move_task(3);
+            assert_eq!(result, 3);
         }
     }
 }

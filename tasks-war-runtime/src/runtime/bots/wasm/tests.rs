@@ -29,7 +29,7 @@ async fn move_down() {
 
     let p = bot.poll().await.unwrap().0;
 
-    assert_eq!(Command::Move(17, Direction::Down), p);
+    assert_eq!(Command::Move(Direction::Down), p);
 }
 
 #[tokio::test]
@@ -42,7 +42,7 @@ async fn move_left() {
 
     let p = bot.poll().await.unwrap().0;
 
-    assert_eq!(Command::Move(17, Direction::Left), p);
+    assert_eq!(Command::Move(Direction::Left), p);
 }
 
 #[tokio::test]
@@ -93,7 +93,7 @@ async fn action_depends_on_look_result() {
 
     let (c, _) = bot.poll().await.unwrap();
 
-    assert_eq!(Command::Move(2, Direction::Right), c);
+    assert_eq!(Command::Move(Direction::Right), c);
     bot.update(None).await;
 
     let (c, _) = bot.poll().await.unwrap();
@@ -103,7 +103,7 @@ async fn action_depends_on_look_result() {
 
     let (c, _) = bot.poll().await.unwrap();
 
-    assert_eq!(Command::Move(1, Direction::Right), c);
+    assert_eq!(Command::Move(Direction::Right), c);
     bot.update(None).await;
 
     let (c, _) = bot.poll().await.unwrap();
@@ -113,7 +113,7 @@ async fn action_depends_on_look_result() {
 
     let (c, _) = bot.poll().await.unwrap();
 
-    assert_eq!(Command::Move(1, Direction::Down), c);
+    assert_eq!(Command::Move(Direction::Down), c);
     bot.update(None).await;
 
     let (c, _) = bot.poll().await.unwrap();
@@ -123,7 +123,7 @@ async fn action_depends_on_look_result() {
 
     let (c, _) = bot.poll().await.unwrap();
 
-    assert_eq!(Command::Move(1, Direction::Left), c);
+    assert_eq!(Command::Move(Direction::Left), c);
     bot.update(None).await;
 
     let (c, _) = bot.poll().await.unwrap();
@@ -133,6 +133,6 @@ async fn action_depends_on_look_result() {
 
     let (c, _) = bot.poll().await.unwrap();
 
-    assert_eq!(Command::Move(1, Direction::Up), c);
+    assert_eq!(Command::Move(Direction::Up), c);
     bot.update(None).await;
 }

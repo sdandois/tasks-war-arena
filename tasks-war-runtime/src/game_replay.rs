@@ -44,8 +44,8 @@ impl GameReplay {
 
     fn accept(&mut self, task_id: TaskId, command: &Command) {
         match command {
-            Command::Move(random_delta, random_dir) => {
-                self.game.move_task(task_id, *random_delta, *random_dir);
+            Command::Move(random_dir) => {
+                self.game.move_task(task_id, *random_dir);
             }
             Command::Split => {
                 let _res = self.game.split(task_id);
@@ -75,8 +75,8 @@ mod tests {
             board_size: BoardSize(5, 5),
         });
 
-        game.accept(TaskId(0, 0), &Command::Move(1, Direction::Right), 1);
-        game.accept(TaskId(1, 0), &Command::Move(1, Direction::Left), 1);
+        game.accept(TaskId(0, 0), &Command::Move(Direction::Right), 1);
+        game.accept(TaskId(1, 0), &Command::Move(Direction::Left), 1);
 
         let memento = game.dump();
 
@@ -136,10 +136,10 @@ __G__
             board_size: BoardSize(5, 5),
         });
 
-        game.accept(TaskId(0, 0), &Command::Move(1, Direction::Right), 1);
+        game.accept(TaskId(0, 0), &Command::Move( Direction::Right), 1);
         game.accept(TaskId(0, 0), &Command::Look(1, 1), 2);
         game.accept(TaskId(0, 0), &Command::Look(1, 1), 3);
-        game.accept(TaskId(1, 0), &Command::Move(1, Direction::Left), 4);
+        game.accept(TaskId(1, 0), &Command::Move(Direction::Left), 4);
 
         let memento = game.dump();
 

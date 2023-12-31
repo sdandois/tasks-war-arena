@@ -37,8 +37,8 @@ fn start_runtime() {
 fn first_move_is_split() {
     let factory = bots::MockedBotFactory::new()
         .mock(TaskId(0, 0), Command::Split)
-        .mock(TaskId(1, 0), Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 1), Command::Move(1, Direction::Left));
+        .mock(TaskId(1, 0), Command::Move( Direction::Left))
+        .mock(TaskId(0, 1), Command::Move( Direction::Left));
 
     let runner = GameRunner::new(factory);
 
@@ -57,9 +57,9 @@ fn if_look_result_is_empty_move_right() {
         .mock(TaskId(0, 0), Command::Look(1, 0))
         .mock_fn(TaskId(0, 0), |r| {
             if let crate::game::LookResult::Food = r.unwrap() {
-                Command::Move(1, Direction::Left)
+                Command::Move( Direction::Left)
             } else {
-                Command::Move(1, Direction::Right)
+                Command::Move( Direction::Right)
             }
         });
 
@@ -76,9 +76,9 @@ fn if_look_result_is_empty_move_left() {
         .mock(TaskId(0, 0), Command::Look(0, 2))
         .mock_fn(TaskId(0, 0), |r| {
             if let crate::game::LookResult::Food = r.unwrap() {
-                Command::Move(1, Direction::Left)
+                Command::Move( Direction::Left)
             } else {
-                Command::Move(1, Direction::Right)
+                Command::Move( Direction::Right)
             }
         });
 
@@ -94,20 +94,20 @@ fn dont_play_if_killed() {
     let mut factory = bots::MockedBotFactory::new()
         .mock(TaskId(0, 0), Command::Pass)
         .mock(TaskId(1, 0), Command::Split)
-        .mock(TaskId(1, 1), Command::Move(1, Direction::Down));
+        .mock(TaskId(1, 1), Command::Move( Direction::Down));
 
     for _i in 0..24 {
-        factory = factory.mock(TaskId(0, 0), Command::Move(1, Direction::Down));
+        factory = factory.mock(TaskId(0, 0), Command::Move( Direction::Down));
         factory = factory.mock(TaskId(1, 0), Command::Pass);
     }
 
     for _i in 0..3 {
-        factory = factory.mock(TaskId(0, 0), Command::Move(1, Direction::Left));
+        factory = factory.mock(TaskId(0, 0), Command::Move( Direction::Left));
         factory = factory.mock(TaskId(1, 0), Command::Pass);
     }
 
-    factory = factory.mock(TaskId(0, 0), Command::Move(1, Direction::Left));
-    factory = factory.mock(TaskId(1, 0), Command::Move(1, Direction::Up));
+    factory = factory.mock(TaskId(0, 0), Command::Move( Direction::Left));
+    factory = factory.mock(TaskId(1, 0), Command::Move( Direction::Up));
 
     let runner = GameRunner::new(factory);
 
@@ -164,10 +164,10 @@ fn full_game_finishes_with_fuel_error() {
 #[tokio::test]
 async fn cloned_tasks_have_same_used_fuel() {
     let factory = bots::MockedBotFactory::new()
-        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 0), Command::Move(1, Direction::Left))
+        .mock(TaskId(0, 0), Command::Move( Direction::Left))
+        .mock(TaskId(0, 0), Command::Move( Direction::Left))
+        .mock(TaskId(0, 0), Command::Move( Direction::Left))
+        .mock(TaskId(0, 0), Command::Move( Direction::Left))
         .mock(TaskId(0, 0), Command::Split);
 
     let mut runner = RunnerContext::new(factory, 9, GameConfig::default());
@@ -196,8 +196,8 @@ async fn cloned_tasks_have_same_used_fuel() {
 fn create_runner_with_config() {
     let factory = bots::MockedBotFactory::new()
         .mock(TaskId(0, 0), Command::Split)
-        .mock(TaskId(1, 0), Command::Move(1, Direction::Left))
-        .mock(TaskId(0, 1), Command::Move(1, Direction::Left));
+        .mock(TaskId(1, 0), Command::Move( Direction::Left))
+        .mock(TaskId(0, 1), Command::Move( Direction::Left));
 
     let config = GameConfig {
         board_size: BoardSize(10, 10),

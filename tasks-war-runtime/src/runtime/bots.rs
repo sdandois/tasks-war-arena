@@ -56,9 +56,8 @@ impl Bot for RandomBot {
             self.weight /= 2;
             Some((Command::Split, 1))
         } else {
-            let random_delta = self.rng.gen_range(0..16);
 
-            Some((Command::Move(random_delta, random_dir), 1))
+            Some((Command::Move(random_dir), 1))
         }
     }
 
@@ -146,7 +145,7 @@ impl MockedBotFactory {
 
 impl BotFactory for MockedBotFactory {
     type B = MockBot;
-    async fn create_bot(&self, task_id: TaskId, task_weight: i32) -> MockBot {
+    async fn create_bot(&self, task_id: TaskId, _task_weight: i32) -> MockBot {
         let commands: Option<&VecDeque<Arc<CommandClosure>>> = self.commands.get(&task_id);
 
         let commands: VecDeque<Arc<CommandClosure>> = commands.cloned().unwrap_or_default();

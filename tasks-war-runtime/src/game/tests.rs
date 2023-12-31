@@ -23,7 +23,6 @@ fn look_distance() {
     let task = Task::new(0, (10, 10));
 
     assert_eq!(64, task.look_distance());
-    assert_eq!(1, task.move_distance());
 }
 
 #[test]
@@ -32,7 +31,7 @@ fn move_right() {
 
     let mut game = Game::new();
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!((10, 11), game.get_tasks(0)[0].pos);
 }
@@ -43,7 +42,7 @@ fn move_right_too_far() {
 
     let mut game = Game::new();
 
-    game.move_task(TaskId(0, 0), 2, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!((10, 11), game.get_tasks(0)[0].pos);
 }
@@ -54,7 +53,7 @@ fn move_left() {
 
     let mut game = Game::new();
 
-    game.move_task(TaskId(0, 0), 1, Direction::Left);
+    game.move_task(TaskId(0, 0), Direction::Left);
 
     assert_eq!((10, 9), game.get_tasks(0)[0].pos);
 }
@@ -65,7 +64,7 @@ fn move_up() {
 
     let mut game = Game::new();
 
-    game.move_task(TaskId(0, 0), 1, Direction::Up);
+    game.move_task(TaskId(0, 0), Direction::Up);
 
     assert_eq!((9, 10), game.get_tasks(0)[0].pos);
 }
@@ -76,7 +75,7 @@ fn move_down() {
 
     let mut game = Game::new();
 
-    game.move_task(TaskId(0, 0), 1, Direction::Down);
+    game.move_task(TaskId(0, 0), Direction::Down);
 
     assert_eq!((11, 10), game.get_tasks(0)[0].pos);
 }
@@ -88,7 +87,7 @@ fn roll_over_left() {
 
     let mut game = Game::with_tasks(vec![task0, task1]);
 
-    game.move_task(TaskId(0, 0), 1, Direction::Left);
+    game.move_task(TaskId(0, 0), Direction::Left);
 
     assert_eq!((0, game.board_size.1 - 1), game.get_tasks(0)[0].pos);
 }
@@ -203,8 +202,8 @@ fn task_player_move_two_times() {
     let mut game =
         Game::with_full_customization(Some(vec![task0]), Some(vec![]), Some(BoardSize(5, 5)));
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!(BoardContent::None, *game.board.get_content((0, 0)));
     assert_eq!(BoardContent::None, game.board[0][1]);
@@ -224,8 +223,8 @@ fn task_player_collision() {
         Some(BoardSize(5, 5)),
     );
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!(BoardContent::None, *game.board.get_content((0, 0)));
     assert_eq!(BoardContent::None, game.board[0][1]);
@@ -248,7 +247,7 @@ fn task_player_looses_collision() {
         Some(BoardSize(5, 5)),
     );
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!(BoardContent::None, *game.board.get_content((0, 0)));
     assert_eq!(BoardContent::Tasks(vec![TaskId(1, 0)]), game.board[0][1]);
@@ -272,8 +271,8 @@ fn eat_fruit() {
         Some(BoardSize(5, 5)),
     );
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!(BoardContent::None, *game.board.get_content((0, 0)));
     assert_eq!(BoardContent::None, game.board[0][1]);
@@ -295,7 +294,7 @@ fn tasks_collision_same_player() {
         Some(BoardSize(5, 5)),
     );
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!(BoardContent::None, *game.board.get_content((0, 0)));
     if let BoardContent::Tasks(tts) = &game.board[0][1] {
@@ -311,7 +310,7 @@ fn tasks_collision_same_player() {
     assert_eq!((0, 1), game.get_task(TaskId(0, 0)).pos);
     assert_eq!((0, 1), game.get_task(TaskId(0, 1)).pos);
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert_eq!(BoardContent::None, *game.board.get_content((0, 0)));
     assert_eq!(BoardContent::Tasks(vec![TaskId(0, 1)]), game.board[0][1]);
@@ -333,7 +332,7 @@ fn tasks_collision_multiple_tasks() {
         Some(BoardSize(5, 5)),
     );
 
-    game.move_task(TaskId(1, 0), 1, Direction::Right);
+    game.move_task(TaskId(1, 0), Direction::Right);
 
     assert_eq!(BoardContent::None, *game.board.get_content((0, 0)));
     if let BoardContent::Tasks(tts) = &game.board[0][1] {
@@ -362,7 +361,7 @@ fn many_to_many_collision_same_team() {
         Some(BoardSize(5, 5)),
     );
 
-    game.move_task(TaskId(0, 1), 1, Direction::Right);
+    game.move_task(TaskId(0, 1), Direction::Right);
 
     if let BoardContent::Tasks(tts) = &game.board[0][0] {
         assert_eq!(1, tts.len());
@@ -464,7 +463,7 @@ fn when_all_tasks_die_the_game_is_finished() {
         Task::with_weight(1, (0, 1), 32),
     ]);
 
-    game.move_task(TaskId(0, 0), 1, Direction::Right);
+    game.move_task(TaskId(0, 0), Direction::Right);
 
     assert!(game.is_finished())
 }
@@ -566,16 +565,15 @@ fn if_there_is_no_food_left_game_is_over() {
 
     assert!(!game.is_finished());
 
-    game.move_task(TaskId(0, 0), 1, Direction::Down);
+    game.move_task(TaskId(0, 0), Direction::Down);
 
     assert!(game.points(0) > 0);
     assert!(!game.is_finished());
 
-    game.move_task(TaskId(0, 0), 1, Direction::Down);
+    game.move_task(TaskId(0, 0), Direction::Down);
 
     assert!(game.is_finished());
 }
-
 
 #[test]
 fn remaining_fruits_counts_double_fruits() {
@@ -602,14 +600,17 @@ fn remaining_fruits_counts_double_fruits() {
 
     assert!(!game.is_finished());
 
-    game.move_task(TaskId(0, 0), 1, Direction::Down);
+    game.move_task(TaskId(0, 0), Direction::Down);
 
     assert!(game.points(0) > 0);
     assert!(!game.is_finished());
 
-    assert_eq!(BoardContent::Food(Fruit::Banana),  *game.board.get_content((3,0)));
+    assert_eq!(
+        BoardContent::Food(Fruit::Banana),
+        *game.board.get_content((3, 0))
+    );
 
-    game.move_task(TaskId(0, 0), 1, Direction::Down);
+    game.move_task(TaskId(0, 0), Direction::Down);
 
     assert!(game.is_finished());
 }
