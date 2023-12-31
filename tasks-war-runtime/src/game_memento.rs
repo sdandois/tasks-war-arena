@@ -13,11 +13,17 @@ pub struct GameMemento {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct HistoryEntry {
+pub struct ActionEntry {
     pub task_id: TaskId,
     pub command: Command,
     pub used_fuel: isize,
     pub command_response: CommandResponse,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum HistoryEntry {
+    Action(ActionEntry),
+    KillEvent(TaskId, String),
 }
 
 impl GameMemento {
@@ -26,19 +32,19 @@ impl GameMemento {
         GameMemento {
             config: GameConfig::default(),
             history: vec![
-                HistoryEntry::new(
+                HistoryEntry::create_action(
                     TaskId(1, 0),
                     Command::Move(Direction::Right),
                     2,
                     CommandResponse::None,
                 ),
-                HistoryEntry::new(
+                HistoryEntry::create_action(
                     TaskId(0, 0),
                     Command::Move(Direction::Left),
                     3,
                     CommandResponse::None,
                 ),
-                HistoryEntry::new(
+                HistoryEntry::create_action(
                     TaskId(0, 0),
                     Command::Move(Direction::Right),
                     1,
@@ -50,22 +56,36 @@ impl GameMemento {
 }
 
 impl HistoryEntry {
-    pub fn new(
+    pub fn create_action(
         task_id: TaskId,
         command: Command,
         used_fuel: isize,
         command_response: CommandResponse,
     ) -> HistoryEntry {
-        HistoryEntry {
+        HistoryEntry::Action(ActionEntry {
             task_id,
             command,
             used_fuel,
             command_response,
+        })
+    }
+
+    pub fn create_kill_event(task_id: TaskId, reason: Option<String>) -> HistoryEntry {
+        HistoryEntry::KillEvent(
+            task_id,
+            reason.unwrap_or_else(|| String::from("out of bad luck")),
+        )
+    }
+
+    pub fn is_look(&self) -> bool {
+        match self {
+            HistoryEntry::Action(a) => a.command.is_look(),
+            HistoryEntry::KillEvent(_, _) => false,
         }
     }
 }
 
-impl Display for HistoryEntry {
+impl Display for ActionEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -78,5 +98,14 @@ impl Display for HistoryEntry {
         };
 
         Ok(())
+    }
+}
+
+impl Display for HistoryEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HistoryEntry::Action(action) => write!(f, "{}", action),
+            HistoryEntry::KillEvent(tid, reason) => write!(f, "{:?} died {}", tid, reason),
+        }
     }
 }

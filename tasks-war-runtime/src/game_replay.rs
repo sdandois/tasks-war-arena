@@ -26,7 +26,12 @@ impl GameReplay {
             let entry = self.history[self.cursor].clone();
             self.cursor += 1;
 
-            self.accept(entry.task_id, &entry.command);
+            match &entry {
+                HistoryEntry::Action(action) => {
+                    self.accept(action.task_id, &action.command);
+                }
+                HistoryEntry::KillEvent(tid, _reason) => self.kill(*tid),
+            }
 
             Some(entry)
         } else {
@@ -35,7 +40,7 @@ impl GameReplay {
     }
 
     pub fn advance_skipping_looks(&mut self) -> Option<HistoryEntry> {
-        while self.cursor < self.history.len() && self.history[self.cursor].command.is_look() {
+        while self.cursor < self.history.len() && self.history[self.cursor].is_look() {
             self.cursor += 1;
         }
 
@@ -55,6 +60,10 @@ impl GameReplay {
             }
             Command::Pass => (),
         }
+    }
+
+    fn kill(&mut self, task_id: TaskId) {
+        self.game.kill(task_id);
     }
 
     pub fn current(&self) -> &Game {
@@ -136,7 +145,7 @@ __G__
             board_size: BoardSize(5, 5),
         });
 
-        game.accept(TaskId(0, 0), &Command::Move( Direction::Right), 1);
+        game.accept(TaskId(0, 0), &Command::Move(Direction::Right), 1);
         game.accept(TaskId(0, 0), &Command::Look(1, 1), 2);
         game.accept(TaskId(0, 0), &Command::Look(1, 1), 3);
         game.accept(TaskId(1, 0), &Command::Move(Direction::Left), 4);

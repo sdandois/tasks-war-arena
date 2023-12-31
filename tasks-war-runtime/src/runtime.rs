@@ -147,11 +147,18 @@ impl<F: BotFactory + 'static> RunnerContext<F> {
 
                 if let None = message {
                     event!(Level::INFO, "{:?} has panicked", next_task.task_id);
+                    self.borrow_game().kill(
+                        next_task.task_id,
+                        Some(String::from("because it has panicked")),
+                    );
                     std::mem::drop(next_task.tx);
                     let _ = next_task.handle.await;
                 } else if next_task.context.lock().unwrap().used_fuel > MAX_FUEL {
                     event!(Level::INFO, "{:?} has run out of fuel", next_task.task_id);
-                    self.borrow_game().kill(next_task.task_id);
+                    self.borrow_game().kill(
+                        next_task.task_id,
+                        Some(String::from("because it has run out of fuel")),
+                    );
                     std::mem::drop(next_task.tx);
                     let _ = next_task.handle.await;
                 } else {

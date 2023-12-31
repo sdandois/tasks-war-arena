@@ -27,16 +27,21 @@ impl GameWithHistory {
         self.game.points(player)
     }
 
-    pub fn accept(&mut self, task_id: TaskId, command: &Command, used_fuel: isize) -> CommandResponse {
+    pub fn accept(
+        &mut self,
+        task_id: TaskId,
+        command: &Command,
+        used_fuel: isize,
+    ) -> CommandResponse {
         let response = match command {
-            Command::Move( random_dir) => {
-                self.game.move_task(task_id,  *random_dir);
-                
+            Command::Move(random_dir) => {
+                self.game.move_task(task_id, *random_dir);
+
                 CommandResponse::None
             }
             Command::Split => {
                 let res = self.game.split(task_id);
-                
+
                 match res {
                     Ok(tid) => CommandResponse::NewTask(tid),
                     _ => CommandResponse::None,
@@ -44,12 +49,17 @@ impl GameWithHistory {
             }
             Command::Look(delta_x, delta_y) => {
                 let res = self.game.look(task_id, *delta_x, *delta_y);
-                
+
                 CommandResponse::Look(res)
             }
             Command::Pass => CommandResponse::None,
         };
-        self.history.push(HistoryEntry::new(task_id, command.clone(), used_fuel, response.clone()));
+        self.history.push(HistoryEntry::create_action(
+            task_id,
+            command.clone(),
+            used_fuel,
+            response.clone(),
+        ));
 
         response
     }
@@ -62,8 +72,9 @@ impl GameWithHistory {
         self.game.is_finished()
     }
 
-    pub fn kill(&mut self, tid: TaskId) {
-        self.game.kill(tid)
+    pub fn kill(&mut self, tid: TaskId, reason: Option<String>) {
+        self.game.kill(tid);
+        self.history.push(HistoryEntry::create_kill_event(tid, reason));
     }
 
     pub fn dump(self) -> GameMemento {

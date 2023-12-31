@@ -86,7 +86,7 @@ fn execute_replay_command(replay_args: ReplayCommandArgs) -> anyhow::Result<()> 
         while let Some(entry) = game_replay.advance() {
             println!("{entry}");
 
-            if replay_args.interactive && !entry.command.is_look() {
+            if replay_args.interactive && !entry.is_look() {
                 println!("{}", game_replay.current());
                 println!("Press ENTER to continue...");
                 let buffer = &mut [0u8];
