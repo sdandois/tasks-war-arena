@@ -1,6 +1,8 @@
 use std::fmt;
 use std::fmt::Display;
 
+use tracing::{event, Level};
+
 use crate::command::{Command, CommandResponse};
 use crate::game::*;
 use crate::game_memento::*;
@@ -54,12 +56,13 @@ impl GameWithHistory {
             }
             Command::Pass => CommandResponse::None,
         };
-        self.history.push(HistoryEntry::create_action(
-            task_id,
-            command.clone(),
-            used_fuel,
-            response.clone(),
-        ));
+
+        let history_entry =
+            HistoryEntry::create_action(task_id, command.clone(), used_fuel, response.clone());
+
+        event!(Level::INFO, "{}", history_entry);
+
+        self.history.push(history_entry);
 
         response
     }
@@ -74,7 +77,12 @@ impl GameWithHistory {
 
     pub fn kill(&mut self, tid: TaskId, reason: Option<String>) {
         self.game.kill(tid);
-        self.history.push(HistoryEntry::create_kill_event(tid, reason));
+
+        let history_entry = HistoryEntry::create_kill_event(tid, reason);
+
+        event!(Level::INFO, "{}", history_entry);
+
+        self.history.push(history_entry);
     }
 
     pub fn dump(self) -> GameMemento {

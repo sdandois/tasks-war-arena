@@ -89,13 +89,17 @@ impl Display for ActionEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?} executed {:?} having used {} fuel in total.",
+            "{:?}: executed {:?} having used {} fuel in total.",
             self.task_id, self.command, self.used_fuel
         )?;
 
         if let CommandResponse::NewTask(tid) = self.command_response {
             write!(f, " {:?} has spawned", tid)?;
         };
+
+        if let CommandResponse::Look(result) = self.command_response {
+            write!(f, " Has seen {:?}", result)?;
+        }
 
         Ok(())
     }
@@ -105,7 +109,7 @@ impl Display for HistoryEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             HistoryEntry::Action(action) => write!(f, "{}", action),
-            HistoryEntry::KillEvent(tid, reason) => write!(f, "{:?} died {}", tid, reason),
+            HistoryEntry::KillEvent(tid, reason) => write!(f, "{:?}: died {}", tid, reason),
         }
     }
 }

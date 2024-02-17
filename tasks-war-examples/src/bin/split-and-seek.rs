@@ -8,14 +8,15 @@ fn seek_food() -> (i32, i32) {
 
     let mut look_result = look(delta_x, delta_y);
 
-    while look_result != LookResult::Food {
+    while !look_result.is_food() && !look_result.is_null() {
+        debug(&format!("(distance, dx, dy, q) = {:?} {:?} {:?} {:?}", distance, delta_x, delta_y, quadrant));
         match quadrant {
             0 => {
                 // x+, y+
                 delta_x -= 1;
                 delta_y += 1;
 
-                if delta_x < 0 {
+                if delta_x <= 0 {
                     quadrant = 1;
                     delta_x = -1;
                     delta_y = distance - 1;
@@ -26,7 +27,7 @@ fn seek_food() -> (i32, i32) {
                 delta_x -= 1;
                 delta_y -= 1;
 
-                if delta_y < 0 {
+                if delta_y <= 0 {
                     quadrant = 2;
                     delta_x = -(distance - 1);
                     delta_y = -1;
@@ -37,7 +38,7 @@ fn seek_food() -> (i32, i32) {
                 delta_x += 1;
                 delta_y -= 1;
 
-                if delta_x > 0 {
+                if delta_y <= 0 {
                     quadrant = 3;
                     delta_x = distance;
                     delta_y = 0;
@@ -48,7 +49,7 @@ fn seek_food() -> (i32, i32) {
                 delta_x -= 1;
                 delta_y -= 1;
 
-                if delta_x < 0 {
+                if delta_x <= 0 {
                     quadrant = 0;
                     distance += 1;
                     delta_x = distance;
@@ -96,7 +97,10 @@ fn main() {
     }
 
     loop {
+        debug(&format!("seeking food"));
         let target = seek_food();
+
+        debug(&format!("found target {:?}", target));
 
         long_move(target);
     }

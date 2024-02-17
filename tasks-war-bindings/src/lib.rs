@@ -26,6 +26,43 @@ pub enum LookResult {
     Food, // 4
 }
 
+impl LookResult {
+    pub fn is_null(&self) -> bool {
+        match self {
+            LookResult::Null => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        match self {
+            LookResult::None => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_player(&self) -> bool {
+        match self {
+            LookResult::Player => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_opponent(&self) -> bool {
+        match self {
+            LookResult::Opponent => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_food(&self) -> bool {
+        match self {
+            LookResult::Opponent => true,
+            _ => false,
+        }
+    }
+}
+
 impl From<Direction> for i32 {
     fn from(value: Direction) -> Self {
         match value {

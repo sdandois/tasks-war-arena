@@ -57,14 +57,6 @@ impl<B: Bot> TaskRunner<B> {
     }
     pub async fn run(&mut self) {
         while let Some(_content) = self.rx.recv().await {
-            event!(
-                Level::INFO,
-                "{:?}: at {:?} with {} of fuel",
-                self.task_id,
-                self.borrow_game().get_task(self.task_id).pos,
-                self.borrow_context().used_fuel
-            );
-
             let task_response = self.do_play().await;
 
             match task_response {
@@ -100,6 +92,8 @@ impl<B: Bot> TaskRunner<B> {
             task_context.task_id
         };
 
+        let before_pos = self.borrow_game().get_task(self.task_id).pos;
+
         let res = self.borrow_game().accept(task_id, &command, used_fuel);
 
         self.bot_update(&res).await;
@@ -111,8 +105,9 @@ impl<B: Bot> TaskRunner<B> {
 
         event!(
             Level::INFO,
-            "{:?}: after {:?} at {:?}",
+            "{:?}: before at {:?}, after {:?}, at {:?}",
             self.task_id,
+            before_pos,
             command,
             self.borrow_game().get_task(self.task_id).pos
         );
