@@ -6,7 +6,7 @@ members = [
     "tasks-war-runtime-bin",
     "tasks-war-bindings",
     "tasks-war-visualizer"
-]
+, "tasks-war-website"]
 resolver = "2"
 
 
