@@ -20,4 +20,4 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1.39"
 tracing-subscriber = "0.3.17"
 wasmtime = "14.0.1"
-wasmtime-wasi = "14.0.1"
+wasmtime-wasi = "18.0.4"
