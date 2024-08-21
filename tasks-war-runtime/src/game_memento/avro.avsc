@@ -1,0 +1,24 @@
+{
+    "type": "record",
+    "name": "KillEvent",
+    "fields": [
+        {
+            "name": "reason",
+            "type": "string"
+        },
+        {
+            "name": "task_id",
+            "type": "record",
+            "fields": [
+                {
+                    "name": "player_id",
+                    "type": "int"
+                },
+                {
+                    "name": "number",
+                    "type": "int"
+                }
+            ]
+        }
+    ]
+}

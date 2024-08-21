@@ -1,9 +1,15 @@
 [workspace]
 
-
 members = [
     "tasks-war-examples",
     "tasks-war-runtime",
     "tasks-war-runtime-bin",
     "tasks-war-bindings",
+    "tasks-war-visualizer"
 ]
+resolver = "2"
+
+
+[profile.release.package.tasks-war-visualizer]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

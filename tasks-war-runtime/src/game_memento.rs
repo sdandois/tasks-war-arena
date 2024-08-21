@@ -6,13 +6,18 @@ use crate::command::{Command, CommandResponse};
 
 use super::game::*;
 
-#[derive(Serialize, Deserialize)]
+pub mod avro;
+
+#[cfg(test)]
+mod tests;
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct GameMemento {
     pub config: GameConfig,
     pub history: Vec<HistoryEntry>, // Cambiar visibilidad e implementar iterador.
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ActionEntry {
     pub task_id: TaskId,
     pub command: Command,
@@ -20,7 +25,7 @@ pub struct ActionEntry {
     pub command_response: CommandResponse,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum HistoryEntry {
     Action(ActionEntry),
     KillEvent(TaskId, String),
@@ -113,3 +118,5 @@ impl Display for HistoryEntry {
         }
     }
 }
+
+
