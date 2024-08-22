@@ -15,7 +15,7 @@ anyhow = "1.0.75"
 apache-avro = { version = "0.16.0", features = ["derive"] }
 async-trait = "*"
 rand = "0"
-serde = { version = "1.0.189", features = ["derive"] }
+serde = { version = "1.0.193", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.39"
 tracing-subscriber = "0.3.17"
