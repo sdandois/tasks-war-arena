@@ -12,7 +12,7 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1.0.75"
-apache-avro = { version = "0.16.0", features = ["derive"] }
+apache-avro = { version = "0.17.0", features = ["derive"] }
 async-trait = "*"
 rand = "0"
 serde = { version = "1.0.189", features = ["derive"] }
