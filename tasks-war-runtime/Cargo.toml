@@ -19,5 +19,5 @@ serde = { version = "1.0.189", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.39"
 tracing-subscriber = "0.3.17"
-wasmtime = "14.0.1"
+wasmtime = "17.0.3"
 wasmtime-wasi = "14.0.1"
