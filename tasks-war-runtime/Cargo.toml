@@ -11,7 +11,7 @@ path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.75"
+anyhow = "1.0.88"
 apache-avro = { version = "0.16.0", features = ["derive"] }
 async-trait = "*"
 rand = "0"
